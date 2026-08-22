@@ -2,7 +2,7 @@
 // revalidation, so an installed phone serves stale JS indefinitely until the
 // cache name changes - which is exactly how a shipped fix can appear to have
 // done nothing.
-const CACHE_NAME = 'pocketeers-v5';
+const CACHE_NAME = 'pocketeers-v6';
 
 const ASSETS = [
     './',

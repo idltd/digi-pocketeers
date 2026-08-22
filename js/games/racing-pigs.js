@@ -11,6 +11,16 @@ const TRACK_TOP = PLAY_TOP + 28;
 const TRACK_BOTTOM = PLAY_TOP + PLAY_HEIGHT - 30;
 const TRACK_DIST = TRACK_BOTTOM - TRACK_TOP;
 
+// Race pacing. This is a spectator sport - the point is watching them dawdle,
+// stop, oink and get overtaken, so it is deliberately slow. Roughly 40s over a
+// typical screen. Tune the race length here rather than in the update loop.
+const WADDLE_SPEED_MIN = 0.25;
+const WADDLE_SPEED_MAX = 0.6;
+const WADDLE_FRAMES_MIN = 16;
+const WADDLE_FRAMES_MAX = 40;
+const STOP_FRAMES_MIN = 30;
+const STOP_FRAMES_MAX = 60;
+
 const S_PICK = 'pick';
 const S_READY = 'ready';
 const S_RACING = 'racing';
@@ -104,9 +114,7 @@ export class RacingPigsGame {
 
             pig.phaseTimer--;
             if (pig.phase === 'waddle') {
-                // Nudged up slightly from 0.35-0.9 to pay for the longer oinking
-                // pauses below, keeping a race around 20-25s overall.
-                pig.y -= randRange(0.45, 1.05);
+                pig.y -= randRange(WADDLE_SPEED_MIN, WADDLE_SPEED_MAX);
                 if (pig.phaseTimer <= 0) {
                     pig.phase = 'stop';
                     // Stopping is a snort: every pig puffs, but you only ever
@@ -115,7 +123,7 @@ export class RacingPigsGame {
                     // still for at least that, so it never waddles off mid-oink.
                     const burst = this._isMine(pig) ? this.audio.honk() : 0;
                     pig.phaseTimer = Math.max(
-                        Math.floor(randRange(30, 60)),
+                        Math.floor(randRange(STOP_FRAMES_MIN, STOP_FRAMES_MAX)),
                         Math.ceil(burst * 60),
                     );
                     pig.snortTimer = pig.phaseTimer;
@@ -123,7 +131,7 @@ export class RacingPigsGame {
             } else {
                 if (pig.phaseTimer <= 0) {
                     pig.phase = 'waddle';
-                    pig.phaseTimer = Math.floor(randRange(16, 40));
+                    pig.phaseTimer = Math.floor(randRange(WADDLE_FRAMES_MIN, WADDLE_FRAMES_MAX));
                 }
             }
             if (pig.snortTimer > 0) pig.snortTimer--;

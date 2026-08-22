@@ -1,16 +1,60 @@
 // Procedural sound effects via Web Audio API. No sound files.
 
+// Real recordings of a pig, used for the Racing Pigs snort. Synthesis never
+// convincingly sounds like an animal, so drop files in at these paths and they
+// take over automatically. Any that are missing are skipped, so one is enough
+// and four sounds noticeably less repetitive - a burst picks at random.
+//
+// Deliberately NOT in sw.js's precache list: that uses cache.addAll, which
+// rejects wholesale if any single entry 404s, and would take the whole service
+// worker down when a file is absent. The fetch handler caches them on demand.
+const SNORT_SAMPLES = [
+    './assets/audio/oink1.mp3',
+    './assets/audio/oink2.mp3',
+    './assets/audio/oink3.mp3',
+    './assets/audio/oink4.mp3',
+];
+
 class PocketAudio {
     constructor() {
         this.ctx = null;
         this.muted = false;
         this._initialized = false;
+        this._snorts = [];
     }
 
     init() {
         if (this._initialized) return;
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         this._initialized = true;
+        this._loadSnorts();
+    }
+
+    // Fire-and-forget: the synth fallback covers the gap until these land, and
+    // a missing or undecodable file must never break audio for everything else.
+    async _loadSnorts() {
+        const loaded = await Promise.all(SNORT_SAMPLES.map(async (url) => {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) return null;
+                return await this.ctx.decodeAudioData(await res.arrayBuffer());
+            } catch {
+                return null;
+            }
+        }));
+        this._snorts = loaded.filter(Boolean);
+    }
+
+    _playSample(buffer, at, volume = 0.9, rate = 1) {
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+        src.playbackRate.value = rate;
+        const g = this.ctx.createGain();
+        g.gain.value = volume;
+        src.connect(g);
+        g.connect(this.ctx.destination);
+        src.start(at);
+        return buffer.duration / rate;
     }
 
     resume() {
@@ -184,14 +228,28 @@ class PocketAudio {
     honk() {
         if (!this.ctx || this.muted) return 0;
         const count = 2 + Math.floor(Math.random() * 3);
+        const start = this.ctx.currentTime;
+        let at = start;
+
+        if (this._snorts.length > 0) {
+            for (let i = 0; i < count; i++) {
+                const buf = this._snorts[Math.floor(Math.random() * this._snorts.length)];
+                // Vary the pitch a little per grunt, or a repeated sample gives
+                // the game away immediately.
+                const rate = 0.9 + Math.random() * 0.25;
+                const dur = this._playSample(buf, at, 0.9 - i * 0.08, rate);
+                at += dur + 0.05 + Math.random() * 0.06;
+            }
+            return at - start;
+        }
+
         const base = 135 + Math.random() * 45;
-        let at = this.ctx.currentTime;
         for (let i = 0; i < count; i++) {
             const dur = 0.15 - i * 0.02;
             this._oink(at, base * (1 - i * 0.09), dur, 0.22 - i * 0.02);
             at += dur + 0.055 + Math.random() * 0.04;
         }
-        return at - this.ctx.currentTime;
+        return at - start;
     }
 }
 
