@@ -18,8 +18,6 @@ const ROW_H = 38;
 class Hub {
     constructor() {
         this.canvas = document.getElementById('game-canvas');
-        this.canvas.width = CANVAS_WIDTH;
-        this.canvas.height = CANVAS_HEIGHT;
         this.renderer = new Renderer(this.canvas);
         input.attach(this.canvas);
         this.canvas.addEventListener('pointerup', (e) => this._onRawGesture(e));

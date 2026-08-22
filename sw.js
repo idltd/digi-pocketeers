@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pocketeers-v1';
+const CACHE_NAME = 'pocketeers-v2';
 
 const ASSETS = [
     './',
