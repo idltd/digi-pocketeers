@@ -104,14 +104,21 @@ export class RacingPigsGame {
 
             pig.phaseTimer--;
             if (pig.phase === 'waddle') {
-                pig.y -= randRange(0.35, 0.9);
+                // Nudged up slightly from 0.35-0.9 to pay for the longer oinking
+                // pauses below, keeping a race around 20-25s overall.
+                pig.y -= randRange(0.45, 1.05);
                 if (pig.phaseTimer <= 0) {
                     pig.phase = 'stop';
-                    pig.phaseTimer = Math.floor(randRange(14, 34));
-                    // Stopping is a snort: puff for every pig, but only ever hear
-                    // your own - in multiplayer each device plays its own pig only.
-                    pig.snortTimer = 12;
-                    if (this._isMine(pig)) this.audio.honk();
+                    // Stopping is a snort: every pig puffs, but you only ever
+                    // hear your own - in multiplayer each device plays its own.
+                    // honk() returns how long its burst runs, and the pig holds
+                    // still for at least that, so it never waddles off mid-oink.
+                    const burst = this._isMine(pig) ? this.audio.honk() : 0;
+                    pig.phaseTimer = Math.max(
+                        Math.floor(randRange(30, 60)),
+                        Math.ceil(burst * 60),
+                    );
+                    pig.snortTimer = pig.phaseTimer;
                 }
             } else {
                 if (pig.phaseTimer <= 0) {
