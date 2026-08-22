@@ -1,7 +1,7 @@
 {
-    "name": "Pocketeers",
-    "short_name": "Pocketeers",
-    "description": "A collection of classic Tomy Pocketeers handheld games, reborn for your phone.",
+    "name": "Digi Pocketeers",
+    "short_name": "Digi Pocketeers",
+    "description": "A cutesy tribute to classic Tomy Pocketeers handheld games, reborn for your phone.",
     "start_url": "./index.html",
     "display": "fullscreen",
     "orientation": "portrait",

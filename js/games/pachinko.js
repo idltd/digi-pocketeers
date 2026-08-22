@@ -1,5 +1,6 @@
 import { CANVAS_WIDTH, PLAY_TOP, PLAY_HEIGHT, COLORS } from '../core/constants.js';
 import { getHighScore, setHighScore } from '../core/storage.js';
+import { particles } from '../core/particles.js';
 
 const GAME_ID = 'pachinko';
 
@@ -16,7 +17,9 @@ const MAX_SPEED = 3.4;
 const RESTITUTION = 0.55;
 
 const BALLS_PER_ROUND = 7;
-const SLOT_VALUES = [10, 50, 200, 1000, 200, 50, 10];
+// Center is where an untilted ball naturally drains, so it pays the least;
+// edges require actively fighting gravity with tilt and pay the most.
+const SLOT_VALUES = [300, 100, 40, 20, 40, 100, 300];
 
 const S_READY = 'ready';
 const S_PLAYING = 'playing';
@@ -51,7 +54,10 @@ export class PachinkoGame {
             const spacing = BOARD_W / (count + 1);
             for (let i = 0; i < count; i++) {
                 const offset = row % 2 === 0 ? spacing : spacing * 1.5;
-                const x = BOARD_X + offset + i * spacing;
+                // Small per-peg jitter so the board isn't perfectly symmetric —
+                // otherwise an unsteered ball funnels down the same center channel every time.
+                const jitter = (Math.random() - 0.5) * 6;
+                const x = BOARD_X + offset + i * spacing + jitter;
                 if (x > BOARD_X + 4 && x < BOARD_X + BOARD_W - 4) this.pegs.push({ x, y });
             }
         }
@@ -128,8 +134,16 @@ export class PachinkoGame {
             this.ballsLeft--;
             this.state = S_SLOTTED;
             this._stateTimer = 55;
-            if (value >= 1000) { this.audio.jackpot(); this.input.vibrate([40, 30, 40, 30, 80]); }
-            else { this.audio.tap(); this.input.vibrate(30); }
+            if (value >= 300) {
+                this.audio.jackpot();
+                this.input.vibrate([40, 30, 40, 30, 80]);
+                this.renderer.shake(3, 12);
+                particles.burst(this.ballX, this.ballY, [COLORS.warn, COLORS.accent, COLORS.accent2], 24, 3);
+            } else {
+                this.audio.tap();
+                this.input.vibrate(30);
+                particles.burst(this.ballX, this.ballY, COLORS.accent3, 8, 1.6);
+            }
             if (setHighScore(GAME_ID, this.score)) this.highScore = this.score;
         }
     }
@@ -142,12 +156,12 @@ export class PachinkoGame {
 
     render() {
         const r = this.renderer;
-        r.rect(BOARD_X, BOARD_Y, BOARD_W, BOARD_H, COLORS.lcdBg);
-        r.strokeRect(BOARD_X, BOARD_Y, BOARD_W, BOARD_H, COLORS.accentDim);
+        r.roundRect(BOARD_X, BOARD_Y, BOARD_W, BOARD_H, 8, COLORS.lcdBg);
+        r.strokeRect(BOARD_X, BOARD_Y, BOARD_W, BOARD_H, COLORS.accent2);
 
-        for (const peg of this.pegs) r.circle(peg.x, peg.y, PEG_R, COLORS.accentDim);
+        for (const peg of this.pegs) r.glowCircle(peg.x, peg.y, PEG_R, COLORS.accent3, 4);
 
-        if (this.state === S_PLAYING) r.circle(this.ballX, this.ballY, BALL_R, COLORS.white);
+        if (this.state === S_PLAYING) r.glowCircle(this.ballX, this.ballY, BALL_R, COLORS.white, 6);
 
         this._renderSlots();
         this._renderHud();

@@ -30,11 +30,26 @@ export class Renderer {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.ctx.imageSmoothingEnabled = false;
+        this._shakeMag = 0;
+        this._shakeFrames = 0;
     }
 
     clear(color = COLORS.bg) {
+        let ox = 0, oy = 0;
+        if (this._shakeFrames > 0) {
+            ox = (Math.random() * 2 - 1) * this._shakeMag;
+            oy = (Math.random() * 2 - 1) * this._shakeMag;
+            this._shakeFrames--;
+        }
+        this.ctx.setTransform(1, 0, 0, 1, ox, oy);
         this.ctx.fillStyle = color;
         this.ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
+
+    // Brief camera shake for impacts/wins. Call once; decays automatically.
+    shake(magnitude = 3, frames = 10) {
+        this._shakeMag = magnitude;
+        this._shakeFrames = frames;
     }
 
     rect(x, y, w, h, color) {
@@ -52,6 +67,22 @@ export class Renderer {
         this.ctx.fillStyle = color;
         this.ctx.beginPath();
         this.ctx.arc(Math.floor(x), Math.floor(y), r, 0, Math.PI * 2);
+        this.ctx.fill();
+    }
+
+    glowCircle(x, y, r, color, glowAmount = 8) {
+        this.ctx.save();
+        this.ctx.shadowColor = color;
+        this.ctx.shadowBlur = glowAmount;
+        this.circle(x, y, r, color);
+        this.ctx.restore();
+    }
+
+    roundRect(x, y, w, h, radius, color) {
+        const rad = Math.min(radius, w / 2, h / 2);
+        this.ctx.fillStyle = color;
+        this.ctx.beginPath();
+        this.ctx.roundRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h), rad);
         this.ctx.fill();
     }
 

@@ -24,6 +24,7 @@ class Input {
         this.tiltX = 0;
         this.tiltY = 0;
         this.tiltSupported = 'ondeviceorientation' in window;
+        this.secureContext = window.isSecureContext;
         this.tiltPermission = 'unknown'; // unknown | granted | denied | unsupported | not-needed
         this._tiltCalibration = null; // { beta, gamma } captured at calibration time
 

@@ -10,15 +10,21 @@ export const HUD_HEIGHT = 20;
 export const PLAY_TOP = HUD_HEIGHT;
 export const PLAY_HEIGHT = CANVAS_HEIGHT - HUD_HEIGHT;
 
+// Bright candy-arcade palette: deep purple-navy background, hot-pink primary accent,
+// cyan/lime as secondary accents for variety (slot symbols, pachinko pockets, etc).
 export const COLORS = {
-    bg: '#0c1210',
-    lcdBg: '#1a2b22',
-    ink: '#0f3d24',
-    accent: '#3ddc84',
-    accentDim: '#1f8f52',
-    warn: '#e8c547',
-    danger: '#d84545',
-    white: '#eaf5ee',
+    bg: '#1a0b2e',
+    lcdBg: '#2d1b4e',
+    ink: '#4a2f7a',
+    accent: '#ff3d81',
+    accentDim: '#c9268f',
+    accent2: '#00e5ff',
+    accent2Dim: '#0098ad',
+    accent3: '#7cff6b',
+    accent3Dim: '#4fc73f',
+    warn: '#ffd23f',
+    danger: '#ff4757',
+    white: '#fff9fb',
 };
 
 export const STATE_HUB = 'hub';

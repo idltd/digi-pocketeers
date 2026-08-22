@@ -1,5 +1,6 @@
 import { CANVAS_WIDTH, PLAY_TOP, PLAY_HEIGHT, COLORS } from '../core/constants.js';
 import { getHighScore, setHighScore } from '../core/storage.js';
+import { particles } from '../core/particles.js';
 
 const GAME_ID = 'baseball';
 
@@ -104,6 +105,8 @@ export class BaseballGame {
         this._stateTimer = 55;
         this.audio.win();
         this.input.vibrate(runs >= 4 ? [30, 20, 30, 20, 60] : 30);
+        if (runs >= 4) this.renderer.shake(3, 10);
+        particles.burst(this.ballX, this.ballY, runs >= 4 ? [COLORS.warn, COLORS.accent, COLORS.accent2] : COLORS.accent3, runs >= 4 ? 20 : 10, 2.4);
         if (setHighScore(GAME_ID, this.runs)) this.highScore = this.runs;
     }
 

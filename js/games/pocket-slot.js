@@ -1,5 +1,6 @@
 import { CANVAS_WIDTH, PLAY_TOP, PLAY_HEIGHT, COLORS } from '../core/constants.js';
 import { getHighScore, setHighScore } from '../core/storage.js';
+import { particles } from '../core/particles.js';
 
 const GAME_ID = 'pocket-slot';
 
@@ -108,6 +109,9 @@ export class PocketSlotGame {
             this.credits += payout;
             this.audio[payout >= 100 ? 'jackpot' : 'win']();
             this.input.vibrate(payout >= 100 ? [40, 30, 40, 30, 40, 30, 100] : [30, 20, 30]);
+            const cx = REEL_X[1] + REEL_W / 2, cy = REEL_Y + REEL_H / 2;
+            if (payout >= 100) this.renderer.shake(3, 14);
+            particles.burst(cx, cy, payout >= 100 ? [COLORS.warn, COLORS.accent, COLORS.accent2] : COLORS.accent3, payout >= 100 ? 26 : 12, 2.6);
         } else {
             this.audio.tap();
         }

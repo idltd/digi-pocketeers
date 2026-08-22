@@ -1,5 +1,6 @@
 import { CANVAS_WIDTH, PLAY_TOP, PLAY_HEIGHT, COLORS } from '../core/constants.js';
 import { getHighScore, setHighScore } from '../core/storage.js';
+import { particles } from '../core/particles.js';
 
 const GAME_ID = 'secret-passage';
 
@@ -227,6 +228,7 @@ export class SecretPassageGame {
             this.state = S_WIN;
             this._stateTimer = 90;
             this.audio.win();
+            particles.burst(goal.x, goal.y, [COLORS.accent, COLORS.accent2, COLORS.warn], 22, 2.8);
             if (setHighScore(GAME_ID, this.score)) this.highScore = this.score;
             return;
         }
@@ -239,6 +241,8 @@ export class SecretPassageGame {
                 this.ballY = c.y;
                 this.audio.fall();
                 this.input.vibrate(80);
+                this.renderer.shake(2, 8);
+                particles.burst(c.x, c.y, COLORS.danger, 10, 1.8);
                 return;
             }
         }

@@ -1,5 +1,6 @@
 import { CANVAS_WIDTH, PLAY_TOP, PLAY_HEIGHT, COLORS } from '../core/constants.js';
 import { getHighScore, setHighScore } from '../core/storage.js';
+import { particles } from '../core/particles.js';
 
 const GAME_ID = 'target-range';
 
@@ -91,6 +92,7 @@ export class TargetRangeGame {
                 this.targets.splice(hitIndex, 1);
                 this.audio.hit();
                 this.input.vibrate(t.bonus ? [20, 20, 20] : 25);
+                particles.burst(t.x, t.y, t.bonus ? [COLORS.warn, COLORS.accent2] : COLORS.accent, t.bonus ? 18 : 10, 2.2);
             } else {
                 this.audio.error();
             }

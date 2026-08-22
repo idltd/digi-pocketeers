@@ -1,5 +1,6 @@
 import { CANVAS_WIDTH, PLAY_TOP, PLAY_HEIGHT, COLORS } from '../core/constants.js';
 import { getHighScore, setHighScore } from '../core/storage.js';
+import { particles } from '../core/particles.js';
 
 const GAME_ID = 'derby';
 
@@ -75,6 +76,7 @@ export class DerbyGame {
         if (tap && this.boostCooldown <= 0) {
             this.boostTimer = BOOST_FRAMES;
             this.boostCooldown = BOOST_COOLDOWN;
+            particles.burst(this.runnerX, TRACK_Y + TRACK_H - 30, COLORS.warn, 8, 1.4);
             this.audio.tick();
         }
         if (this.boostTimer > 0) this.boostTimer--;
@@ -106,6 +108,8 @@ export class DerbyGame {
                 this._stateTimer = 40;
                 this.audio.wallHit();
                 this.input.vibrate(100);
+                this.renderer.shake(4, 12);
+                particles.burst(this.runnerX, TRACK_Y + TRACK_H - 30, COLORS.danger, 16, 2.6);
                 if (setHighScore(GAME_ID, Math.floor(this.distance))) this.highScore = Math.floor(this.distance);
                 return;
             }

@@ -1,5 +1,6 @@
 import { CANVAS_WIDTH, PLAY_TOP, PLAY_HEIGHT, COLORS } from '../core/constants.js';
 import { getHighScore, setHighScore } from '../core/storage.js';
+import { particles } from '../core/particles.js';
 
 const GAME_ID = 'amazing-maze';
 
@@ -252,6 +253,7 @@ export class AmazingMazeGame {
             this.state = S_WIN;
             this._stateTimer = 90;
             this.audio.win();
+            particles.burst(goal.x, goal.y, [COLORS.accent, COLORS.accent2, COLORS.warn], 22, 2.8);
             if (setHighScore(GAME_ID, this.score)) this.highScore = this.score;
             return;
         }
@@ -264,6 +266,8 @@ export class AmazingMazeGame {
                 this.ballY = c.y;
                 this.audio.fall();
                 this.input.vibrate(80);
+                this.renderer.shake(2, 8);
+                particles.burst(c.x, c.y, COLORS.danger, 10, 1.8);
                 return;
             }
         }
@@ -304,11 +308,12 @@ export class AmazingMazeGame {
         }
 
         const goal = this._cellCenter(...this.goalCell);
-        r.strokeCircle(goal.x, goal.y, GOAL_R, COLORS.accent, 2);
-        r.circle(goal.x, goal.y, GOAL_R - 3, COLORS.accentDim);
+        const pulse = 2 + Math.sin(performance.now() / 200) * 2;
+        r.strokeCircle(goal.x, goal.y, GOAL_R + pulse, COLORS.accent2, 2);
+        r.glowCircle(goal.x, goal.y, GOAL_R - 3, COLORS.accent, 6);
 
         if (this.state !== S_FALLING || Math.floor(this._stateTimer / 4) % 2 === 0) {
-            r.circle(this.ballX, this.ballY, BALL_R, COLORS.white);
+            r.glowCircle(this.ballX, this.ballY, BALL_R, COLORS.white, 5);
         }
     }
 

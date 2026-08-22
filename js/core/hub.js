@@ -5,7 +5,8 @@ import {
 import { Renderer } from './renderer.js';
 import { input } from './input.js';
 import { audio } from './audio.js';
-import { getHighScore } from './storage.js';
+import { particles } from './particles.js';
+import { getHighScore, getFlag, setFlag } from './storage.js';
 import { createGame } from '../games/index.js';
 
 const ROW_H = 40;
@@ -23,6 +24,7 @@ class Hub {
         this.activeMeta = null;
         this.activeGame = null;
         this.pendingMeta = null;
+        this.rotateTipDismissed = getFlag('rotateTipDismissed') === 'true';
 
         this._lastTime = 0;
         this._accumulator = 0;
@@ -57,14 +59,41 @@ class Hub {
     }
 
     _update(dt) {
+        particles.update();
         if (this.state === STATE_HUB) this._updateHubList();
         else if (this.state === STATE_TILT_PROMPT) this._updateTiltPrompt();
         else if (this.state === STATE_GAME) this._updateGame(dt);
     }
 
+    _toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen?.().catch(() => {});
+            screen.orientation?.lock?.('portrait').catch(() => {});
+        } else {
+            document.exitFullscreen?.().catch(() => {});
+        }
+    }
+
     _updateHubList() {
         const tap = input.tapped ? { x: input.tapX, y: input.tapY } : null;
         if (!tap) return;
+
+        // Fullscreen toggle icon, top-right corner.
+        if (tap.x > CANVAS_WIDTH - 22 && tap.y < 14) {
+            input.consumeTap();
+            audio.tick();
+            this._toggleFullscreen();
+            return;
+        }
+
+        // Auto-rotate tip banner, dismiss on tap.
+        if (!this.rotateTipDismissed && tap.y >= 40 && tap.y < 54) {
+            input.consumeTap();
+            this.rotateTipDismissed = true;
+            setFlag('rotateTipDismissed', true);
+            return;
+        }
+
         const index = Math.floor((tap.y - LIST_TOP) / ROW_H);
         if (index < 0 || index >= GAME_LIST.length) return;
         if (tap.x < 4 || tap.x > CANVAS_WIDTH - 4) return;
@@ -95,6 +124,7 @@ class Hub {
     }
 
     _enterGame(meta) {
+        particles.clear();
         this.activeMeta = meta;
         this.activeGame = createGame(meta.id, {
             renderer: this.renderer,
@@ -130,18 +160,29 @@ class Hub {
         if (this.state === STATE_HUB) this._renderHubList();
         else if (this.state === STATE_TILT_PROMPT) this._renderTiltPrompt();
         else if (this.state === STATE_GAME) this._renderGame();
+        particles.render(r);
     }
 
     _renderHubList() {
         const r = this.renderer;
-        r.drawText('POCKETEERS', CANVAS_WIDTH / 2, 14, COLORS.accent, 'center', 2);
-        r.drawText('TAP A GAME TO PLAY', CANVAS_WIDTH / 2, 34, COLORS.accentDim, 'center', 1);
+        r.drawText('DIGI POCKETEERS', CANVAS_WIDTH / 2, 12, COLORS.accent, 'center', 2);
+        r.drawText('[ ]', CANVAS_WIDTH - 20, 3, COLORS.accent2, 'left', 1);
+
+        if (!this.rotateTipDismissed) {
+            r.drawText('TIP: TURN OFF AUTO-ROTATE', CANVAS_WIDTH / 2, 42, COLORS.warn, 'center', 1);
+            r.drawText('FOR TILT GAMES (TAP TO HIDE)', CANVAS_WIDTH / 2, 34, COLORS.accentDim, 'center', 1);
+        } else {
+            r.drawText('TAP A GAME TO PLAY', CANVAS_WIDTH / 2, 38, COLORS.accentDim, 'center', 1);
+        }
 
         GAME_LIST.forEach((meta, i) => {
             const y = LIST_TOP + i * ROW_H;
-            r.strokeRect(4, y, CANVAS_WIDTH - 8, ROW_H - 6, COLORS.accentDim);
+            const glow = Math.sin(performance.now() / 500 + i) * 0.5 + 0.5;
+            const rowColor = i % 3 === 0 ? COLORS.accent : i % 3 === 1 ? COLORS.accent2 : COLORS.accent3;
+            r.roundRect(4, y, CANVAS_WIDTH - 8, ROW_H - 6, 6, COLORS.lcdBg);
+            r.strokeRect(4, y, CANVAS_WIDTH - 8, ROW_H - 6, rowColor, 1 + glow);
             r.drawText(meta.title, 10, y + 8, COLORS.white, 'left', 1);
-            r.drawText(meta.subtitle, 10, y + 20, COLORS.accentDim, 'left', 1);
+            r.drawText(meta.subtitle, 10, y + 20, rowColor, 'left', 1);
             const hs = getHighScore(meta.id);
             if (hs > 0) {
                 r.drawText('HI ' + hs, CANVAS_WIDTH - 10, y + 8, COLORS.warn, 'right', 1);
@@ -158,8 +199,11 @@ class Hub {
         r.drawText('TAP BELOW TO ALLOW', CANVAS_WIDTH / 2, cy + 8, COLORS.white, 'center', 1);
         r.strokeRect(40, cy + 24, CANVAS_WIDTH - 80, 24, COLORS.accent);
         r.drawText('ALLOW TILT', CANVAS_WIDTH / 2, cy + 32, COLORS.accent, 'center', 1);
-        r.drawText('TAP HERE TO USE', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 44, COLORS.accentDim, 'center', 1);
-        r.drawText('DRAG-TO-STEER INSTEAD', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 32, COLORS.accentDim, 'center', 1);
+        r.drawText('TAP HERE TO USE', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 60, COLORS.accentDim, 'center', 1);
+        r.drawText('DRAG-TO-STEER INSTEAD', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 48, COLORS.accentDim, 'center', 1);
+
+        const secure = input.secureContext ? 'YES' : 'NO - TILT WILL FAIL';
+        r.drawText(`SECURE PAGE: ${secure}`, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 20, input.secureContext ? COLORS.accent3 : COLORS.danger, 'center', 1);
     }
 
     _renderGame() {
