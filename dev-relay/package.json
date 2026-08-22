@@ -1,0 +1,13 @@
+{
+  "name": "pocketeers-dev-relay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Development stand-in for the Android host app's relay. Not shipped.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
