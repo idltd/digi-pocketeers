@@ -70,10 +70,17 @@ class Hub {
     }
 
     _toggleFullscreen() {
+        this._fullscreenError = null;
         if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen?.()
+            if (typeof document.documentElement.requestFullscreen !== 'function') {
+                this._fullscreenError = 'requestFullscreen() unavailable';
+                return;
+            }
+            document.documentElement.requestFullscreen()
                 .then(() => screen.orientation?.lock?.('portrait').catch(() => {}))
-                .catch(() => {});
+                .catch((err) => {
+                    this._fullscreenError = (err && err.message) || String(err);
+                });
         } else {
             document.exitFullscreen?.().catch(() => {});
         }
@@ -247,6 +254,9 @@ class Hub {
         const r = this.renderer;
         r.drawText('DIGI POCKETEERS', CANVAS_WIDTH / 2, 4, COLORS.accent, 'center', 2);
         r.drawText('[ ]', CANVAS_WIDTH - 20, 3, COLORS.accent2, 'left', 1);
+        if (this._fullscreenError) {
+            r.drawText(this._fullscreenError, CANVAS_WIDTH - 4, 13, COLORS.danger, 'right', 1);
+        }
 
         const soloOn = this.tab === 'solo';
         r.roundRect(4, TAB_Y, CANVAS_WIDTH / 2 - 6, TAB_H, 4, soloOn ? COLORS.accent : COLORS.lcdBg);
