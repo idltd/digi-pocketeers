@@ -2,7 +2,7 @@
 // revalidation, so an installed phone serves stale JS indefinitely until the
 // cache name changes - which is exactly how a shipped fix can appear to have
 // done nothing.
-const CACHE_NAME = 'pocketeers-v6';
+const CACHE_NAME = 'pocketeers-v7';
 
 const ASSETS = [
     './',
@@ -18,6 +18,7 @@ const ASSETS = [
     './js/core/hub.js',
     './js/core/net.js',
     './js/core/multiplayer.js',
+    './js/core/qr.js',
     './js/games/index.js',
     './js/games/amazing-maze.js',
     './js/games/secret-passage.js',

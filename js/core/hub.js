@@ -9,6 +9,7 @@ import { particles } from './particles.js';
 import { getHighScore, getFlag, setFlag } from './storage.js';
 import { createGame } from '../games/index.js';
 import { session, roomFromUrl, multiplayerGames, relayAvailable, LOBBY, PLAYING } from './multiplayer.js';
+import { qrMatrix } from './qr.js';
 
 // Sized generously for the real (taller) font metrics of Fredoka, not the old
 // tight 5px bitmap font this layout originally assumed.
@@ -420,13 +421,13 @@ class Hub {
             r.drawText(session.room, CANVAS_WIDTH / 2, 78, COLORS.warn, 'center', 2);
 
             if (hosting) {
-                // Guests reach this by pointing their camera at the QR; the URL
-                // is shown too so it can be read out if a camera misbehaves.
-                r.drawText('OTHERS: JOIN MY WIFI, THEN', CANVAS_WIDTH / 2, 104, COLORS.accentDim, 'center', 1);
-                r.drawText(session.joinUrl().replace(/^https?:\/\//, ''), CANVAS_WIDTH / 2, 118, COLORS.accent2, 'center', 1);
+                r.drawText('JOIN MY WIFI, THEN SCAN', CANVAS_WIDTH / 2, 98, COLORS.accentDim, 'center', 1);
+                this._renderJoinQr(110);
+                // Shown under the QR so it can be read out if a camera plays up.
+                r.drawText(session.joinUrl().replace(/^https?:\/\//, ''), CANVAS_WIDTH / 2, 224, COLORS.accent2, 'center', 1);
             }
 
-            const py = hosting ? 136 : 104;
+            const py = hosting ? 240 : 104;
             r.drawText(`PLAYERS (${session.players.length})`, CANVAS_WIDTH / 2, py, COLORS.accentDim, 'center', 1);
             session.players.slice(0, 5).forEach((p, i) => {
                 const mine = session.me && p.id === session.me.id;
@@ -441,6 +442,44 @@ class Hub {
         r.roundRect(60, CANVAS_HEIGHT - 30, CANVAS_WIDTH - 120, 22, 5, COLORS.lcdBg);
         r.strokeRect(60, CANVAS_HEIGHT - 30, CANVAS_WIDTH - 120, 22, COLORS.danger);
         r.drawText('LEAVE', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 24, COLORS.danger, 'center', 1);
+    }
+
+    // A phone screen is emissive, so a QR on it scans easily even in a dim pub -
+    // but it still needs true white behind it and a quiet zone, or the dark
+    // theme bleeds into the finder patterns and readers give up.
+    _renderJoinQr(top) {
+        const r = this.renderer;
+        const url = session.joinUrl();
+        if (this._qrUrl !== url) {
+            try {
+                this._qr = qrMatrix(url);
+                this._qrError = null;
+            } catch (err) {
+                this._qr = null;
+                this._qrError = (err && err.message) || String(err);
+            }
+            this._qrUrl = url;
+        }
+        if (!this._qr) {
+            r.drawText(this._qrError || 'QR UNAVAILABLE', CANVAS_WIDTH / 2, top + 40, COLORS.danger, 'center', 1);
+            return;
+        }
+
+        const modules = this._qr.length;
+        const QUIET = 4;
+        const scale = Math.max(2, Math.floor(104 / (modules + QUIET * 2)));
+        const box = (modules + QUIET * 2) * scale;
+        const x0 = Math.round((CANVAS_WIDTH - box) / 2);
+
+        r.rect(x0, top, box, box, '#ffffff');
+        const off = QUIET * scale;
+        for (let row = 0; row < modules; row++) {
+            for (let col = 0; col < modules; col++) {
+                if (this._qr[row][col]) {
+                    r.rect(x0 + off + col * scale, top + off + row * scale, scale, scale, '#000000');
+                }
+            }
+        }
     }
 
     _renderHostGameList() {
