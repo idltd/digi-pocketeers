@@ -8,7 +8,7 @@ import { audio } from './audio.js';
 import { particles } from './particles.js';
 import { getHighScore, getFlag, setFlag } from './storage.js';
 import { createGame } from '../games/index.js';
-import { session, roomFromUrl, multiplayerGames, LOBBY, PLAYING } from './multiplayer.js';
+import { session, roomFromUrl, multiplayerGames, relayAvailable, LOBBY, PLAYING } from './multiplayer.js';
 
 // Sized generously for the real (taller) font metrics of Fredoka, not the old
 // tight 5px bitmap font this layout originally assumed.
@@ -206,6 +206,7 @@ class Hub {
 
     _updateMultiplay(tap) {
         input.consumeTap();
+        if (!relayAvailable()) return;
 
         if (this.mpScreen === 'menu') {
             if (tap.y >= 60 && tap.y < 100) {
@@ -361,8 +362,26 @@ class Hub {
     }
 
     _renderMultiplay() {
+        if (!relayAvailable()) {
+            this._renderNeedsHostApp();
+            return;
+        }
         if (this.mpScreen === 'menu') this._renderMultiplayMenu();
         else this._renderLobby();
+    }
+
+    // Shown on the public web build, where there is no host app serving and so
+    // no relay to talk to.
+    _renderNeedsHostApp() {
+        const r = this.renderer;
+        r.roundRect(16, 70, CANVAS_WIDTH - 32, 100, 6, COLORS.lcdBg);
+        r.strokeRect(16, 70, CANVAS_WIDTH - 32, 100, COLORS.warn);
+        r.drawText('NEEDS THE HOST APP', CANVAS_WIDTH / 2, 84, COLORS.warn, 'center', 1);
+        r.drawText('ONE PHONE RUNS THE APP', CANVAS_WIDTH / 2, 106, COLORS.white, 'center', 1);
+        r.drawText('AND SHARES ITS WIFI.', CANVAS_WIDTH / 2, 118, COLORS.white, 'center', 1);
+        r.drawText('EVERYONE ELSE JUST SCANS', CANVAS_WIDTH / 2, 136, COLORS.accentDim, 'center', 1);
+        r.drawText('THE QR - NO INSTALL.', CANVAS_WIDTH / 2, 148, COLORS.accentDim, 'center', 1);
+        r.drawText('WORKS WITH NO INTERNET', CANVAS_WIDTH / 2, 186, COLORS.accent3, 'center', 1);
     }
 
     _renderMultiplayMenu() {

@@ -39,6 +39,14 @@ export function multiplayerGames() {
     return GAME_LIST.filter((g) => g.multiplayer);
 }
 
+// Multiplayer only exists when the host app is serving these files off its own
+// hotspot, which it does over plain http (it has no certificate). The public
+// GitHub Pages build is https and has no relay behind it, so offer multiplayer
+// only where it can actually work rather than letting it fail on-screen.
+export function relayAvailable() {
+    return location.protocol !== 'https:';
+}
+
 // Read on load: a guest arrives at http://<host-ip>:8080/?room=ABCD having
 // scanned the host's QR, so joining needs no typing and no in-page scanner
 // (a camera needs a secure context, which http:// is not).

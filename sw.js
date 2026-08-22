@@ -1,4 +1,8 @@
-const CACHE_NAME = 'pocketeers-v3';
+// Bump this on every deploy. The fetch handler below is cache-first with no
+// revalidation, so an installed phone serves stale JS indefinitely until the
+// cache name changes - which is exactly how a shipped fix can appear to have
+// done nothing.
+const CACHE_NAME = 'pocketeers-v4';
 
 const ASSETS = [
     './',
@@ -12,6 +16,8 @@ const ASSETS = [
     './js/core/input.js',
     './js/core/particles.js',
     './js/core/hub.js',
+    './js/core/net.js',
+    './js/core/multiplayer.js',
     './js/games/index.js',
     './js/games/amazing-maze.js',
     './js/games/secret-passage.js',
