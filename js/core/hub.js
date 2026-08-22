@@ -8,6 +8,7 @@ import { audio } from './audio.js';
 import { particles } from './particles.js';
 import { getHighScore, getFlag, setFlag } from './storage.js';
 import { createGame } from '../games/index.js';
+import { session, roomFromUrl, multiplayerGames, LOBBY, PLAYING } from './multiplayer.js';
 
 // Sized generously for the real (taller) font metrics of Fredoka, not the old
 // tight 5px bitmap font this layout originally assumed.
@@ -28,7 +29,18 @@ class Hub {
         this.tab = 'solo';
         this.listScroll = 0;
         this._dragLastY = null;
-        this.multiplayStub = null;
+        // 'menu' | 'hosting' | 'joining' - the multiplay tab's sub-screen.
+        this.mpScreen = 'menu';
+        session.on('change', () => this._onSessionChange());
+
+        // Arriving with ?room=ABCD means this device just scanned the host's
+        // QR with its native camera, so skip the menu and join straight away.
+        const invited = roomFromUrl();
+        if (invited) {
+            this.tab = 'multiplay';
+            this.mpScreen = 'joining';
+            session.join(invited, null);
+        }
         this.activeMeta = null;
         this.activeGame = null;
         this.pendingMeta = null;
@@ -141,7 +153,6 @@ class Hub {
             input.consumeTap();
             audio.tick();
             this.tab = tap.x < CANVAS_WIDTH / 2 ? 'solo' : 'multiplay';
-            this.multiplayStub = null;
             return;
         }
 
@@ -182,19 +193,55 @@ class Hub {
         }
     }
 
+    // The host starting a game pulls every other device into it, so react to
+    // the session rather than waiting for a tap.
+    _onSessionChange() {
+        if (session.phase === PLAYING && this.state === STATE_HUB && session.gameId) {
+            const meta = GAME_LIST.find((g) => g.id === session.gameId);
+            // Multiplayer is served over plain http, so tilt is unavailable -
+            // never show the tilt prompt here, just enter.
+            if (meta) this._enterGame(meta);
+        }
+    }
+
     _updateMultiplay(tap) {
         input.consumeTap();
-        if (this.multiplayStub) {
-            this.multiplayStub = null;
+
+        if (this.mpScreen === 'menu') {
+            if (tap.y >= 60 && tap.y < 100) {
+                audio.select();
+                this.mpScreen = 'hosting';
+                session.host(null);
+            } else if (tap.y >= 110 && tap.y < 150) {
+                audio.select();
+                this.mpScreen = 'joining';
+            }
             return;
         }
-        if (tap.y >= 60 && tap.y < 100) {
-            audio.select();
-            this.multiplayStub = 'master';
-        } else if (tap.y >= 110 && tap.y < 150) {
-            audio.select();
-            this.multiplayStub = 'join';
+
+        // LEAVE, bottom of either sub-screen.
+        if (tap.y > CANVAS_HEIGHT - 34) {
+            audio.tick();
+            session.leave();
+            this.mpScreen = 'menu';
+            return;
         }
+
+        if (this.mpScreen === 'hosting' && session.isHost) {
+            const games = multiplayerGames();
+            const top = this._gameListTop();
+            const i = Math.floor((tap.y - top) / 26);
+            if (i >= 0 && i < games.length) {
+                audio.select();
+                const game = games[i];
+                session.startGame(game.id, game.modes?.[0] ?? 'custom');
+            }
+        }
+    }
+
+    _gameListTop() {
+        // Below the room code, join URL and player list.
+        return 150 + Math.min(session.players.length, 5) * 12;
     }
 
     async _updateTiltPrompt() {
@@ -211,10 +258,14 @@ class Hub {
         particles.clear();
         this.activeMeta = meta;
         this._framesInGame = 0;
+        // session is passed always, but a game only looks at it when started
+        // from the lobby - solo play leaves it disconnected and unused.
+        session.clearGameHandlers();
         this.activeGame = createGame(meta.id, {
             renderer: this.renderer,
             audio,
             input,
+            session,
             getHighScore: (id) => getHighScore(id ?? meta.id),
         });
         this.activeGame.enter();
@@ -310,6 +361,11 @@ class Hub {
     }
 
     _renderMultiplay() {
+        if (this.mpScreen === 'menu') this._renderMultiplayMenu();
+        else this._renderLobby();
+    }
+
+    _renderMultiplayMenu() {
         const r = this.renderer;
         r.roundRect(20, 60, CANVAS_WIDTH - 40, 40, 6, COLORS.lcdBg);
         r.strokeRect(20, 60, CANVAS_WIDTH - 40, 40, COLORS.accent2);
@@ -321,19 +377,71 @@ class Hub {
         r.drawText('JOIN GAME', CANVAS_WIDTH / 2, 126, COLORS.accent3, 'center', 1);
         r.drawText('SCAN A HOST QR CODE', CANVAS_WIDTH / 2, 138, COLORS.accentDim, 'center', 1);
 
-        const readyCount = GAME_LIST.filter((g) => g.multiplayer).length;
+        const readyCount = multiplayerGames().length;
         r.drawText(`${readyCount} OF ${GAME_LIST.length} GAMES`, CANVAS_WIDTH / 2, 175, COLORS.white, 'center', 1);
         r.drawText('MULTIPLAYER-READY', CANVAS_WIDTH / 2, 187, COLORS.white, 'center', 1);
-        r.drawText('MORE ADDED AS GAMES', CANVAS_WIDTH / 2, 203, COLORS.accentDim, 'center', 1);
-        r.drawText('ARE CONVERTED', CANVAS_WIDTH / 2, 215, COLORS.accentDim, 'center', 1);
+        r.drawText('NOTHING TO INSTALL -', CANVAS_WIDTH / 2, 207, COLORS.accentDim, 'center', 1);
+        r.drawText('GUESTS JUST SCAN AND PLAY', CANVAS_WIDTH / 2, 219, COLORS.accentDim, 'center', 1);
+    }
 
-        if (this.multiplayStub) {
-            r.rect(16, 230, CANVAS_WIDTH - 32, 60, COLORS.lcdBg);
-            r.strokeRect(16, 230, CANVAS_WIDTH - 32, 60, COLORS.warn);
-            r.drawText('COMING SOON', CANVAS_WIDTH / 2, 244, COLORS.warn, 'center', 1);
-            r.drawText('LOCAL MULTIPLAYER ISN\'T', CANVAS_WIDTH / 2, 258, COLORS.white, 'center', 1);
-            r.drawText('BUILT YET - TAP TO CLOSE', CANVAS_WIDTH / 2, 270, COLORS.white, 'center', 1);
+    _renderLobby() {
+        const r = this.renderer;
+        const hosting = this.mpScreen === 'hosting';
+
+        r.drawText(hosting ? 'HOSTING' : 'JOINING', CANVAS_WIDTH / 2, 48, hosting ? COLORS.accent2 : COLORS.accent3, 'center', 1);
+
+        if (!session.connected) {
+            r.drawText(session.error ? 'CONNECTION FAILED' : 'CONNECTING...', CANVAS_WIDTH / 2, 70, session.error ? COLORS.danger : COLORS.warn, 'center', 1);
+            if (!hosting && !session.room) {
+                r.drawText('SCAN THE HOST\'S QR CODE', CANVAS_WIDTH / 2, 92, COLORS.white, 'center', 1);
+                r.drawText('WITH YOUR CAMERA APP', CANVAS_WIDTH / 2, 104, COLORS.white, 'center', 1);
+            }
+        } else {
+            r.drawText('ROOM', CANVAS_WIDTH / 2, 66, COLORS.accentDim, 'center', 1);
+            r.drawText(session.room, CANVAS_WIDTH / 2, 78, COLORS.warn, 'center', 2);
+
+            if (hosting) {
+                // Guests reach this by pointing their camera at the QR; the URL
+                // is shown too so it can be read out if a camera misbehaves.
+                r.drawText('OTHERS: JOIN MY WIFI, THEN', CANVAS_WIDTH / 2, 104, COLORS.accentDim, 'center', 1);
+                r.drawText(session.joinUrl().replace(/^https?:\/\//, ''), CANVAS_WIDTH / 2, 118, COLORS.accent2, 'center', 1);
+            }
+
+            const py = hosting ? 136 : 104;
+            r.drawText(`PLAYERS (${session.players.length})`, CANVAS_WIDTH / 2, py, COLORS.accentDim, 'center', 1);
+            session.players.slice(0, 5).forEach((p, i) => {
+                const mine = session.me && p.id === session.me.id;
+                const label = `${p.name}${p.host ? ' *' : ''}${mine ? ' (YOU)' : ''}`;
+                r.drawText(label, CANVAS_WIDTH / 2, py + 14 + i * 12, mine ? COLORS.white : COLORS.accentDim, 'center', 1);
+            });
+
+            if (hosting) this._renderHostGameList();
+            else r.drawText('WAITING FOR HOST...', CANVAS_WIDTH / 2, py + 90, COLORS.warn, 'center', 1);
         }
+
+        r.roundRect(60, CANVAS_HEIGHT - 30, CANVAS_WIDTH - 120, 22, 5, COLORS.lcdBg);
+        r.strokeRect(60, CANVAS_HEIGHT - 30, CANVAS_WIDTH - 120, 22, COLORS.danger);
+        r.drawText('LEAVE', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 24, COLORS.danger, 'center', 1);
+    }
+
+    _renderHostGameList() {
+        const r = this.renderer;
+        const games = multiplayerGames();
+        const top = this._gameListTop();
+
+        if (games.length === 0) {
+            r.drawText('NO MULTIPLAYER GAMES', CANVAS_WIDTH / 2, top, COLORS.warn, 'center', 1);
+            r.drawText('CONVERTED YET', CANVAS_WIDTH / 2, top + 12, COLORS.warn, 'center', 1);
+            return;
+        }
+
+        r.drawText('TAP A GAME TO START', CANVAS_WIDTH / 2, top - 14, COLORS.accentDim, 'center', 1);
+        games.forEach((g, i) => {
+            const y = top + i * 26;
+            r.roundRect(16, y, CANVAS_WIDTH - 32, 22, 4, COLORS.lcdBg);
+            r.strokeRect(16, y, CANVAS_WIDTH - 32, 22, COLORS.accent);
+            r.drawText(g.title, CANVAS_WIDTH / 2, y + 6, COLORS.white, 'center', 1);
+        });
     }
 
     _renderTiltPrompt() {
