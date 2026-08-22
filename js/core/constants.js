@@ -6,7 +6,9 @@ export const CANVAS_HEIGHT = 320;
 export const FRAME_TIME = 1000 / 60;
 
 // Top status strip (back button, title, mute) reserved above every game's play area.
-export const HUD_HEIGHT = 20;
+// Kept generously tall since the back button lives here and needs a real thumb target.
+export const HUD_HEIGHT = 32;
+export const BACK_BUTTON_W = 56;
 export const PLAY_TOP = HUD_HEIGHT;
 export const PLAY_HEIGHT = CANVAS_HEIGHT - HUD_HEIGHT;
 
@@ -33,11 +35,12 @@ export const STATE_TILT_PROMPT = 'tilt_prompt';
 
 // Registered in build order. Each entry: id, title, subtitle, uses tilt?
 export const GAME_LIST = [
-    { id: 'amazing-maze', title: 'AMAZING MAZE', subtitle: 'TILT TO ROLL', tilt: true },
-    { id: 'secret-passage', title: 'SECRET PASSAGE', subtitle: 'TILT TO ROLL', tilt: true },
-    { id: 'pachinko', title: 'POCKET PACHINKO', subtitle: 'TILT TO DROP', tilt: true },
-    { id: 'derby', title: 'DERBY', subtitle: 'TILT TO STEER', tilt: true },
-    { id: 'target-range', title: 'TARGET RANGE', subtitle: 'TAP TO SHOOT', tilt: false },
-    { id: 'baseball', title: 'BASEBALL', subtitle: 'SWIPE TO SWING', tilt: false },
-    { id: 'pocket-slot', title: 'POCKET SLOT', subtitle: 'TAP TO SPIN', tilt: false },
+    { id: 'amazing-maze', title: 'AMAZING MAZE', subtitle: 'TILT TO ROLL', tilt: true, multiplayer: false },
+    { id: 'secret-passage', title: 'SECRET PASSAGE', subtitle: 'TILT TO ROLL', tilt: true, multiplayer: false },
+    { id: 'pachinko', title: 'POCKET PACHINKO', subtitle: 'TILT TO DROP', tilt: true, multiplayer: false },
+    { id: 'derby', title: 'DERBY', subtitle: 'TILT TO STEER', tilt: true, multiplayer: false },
+    { id: 'target-range', title: 'TARGET RANGE', subtitle: 'TAP TO SHOOT', tilt: false, multiplayer: false },
+    { id: 'baseball', title: 'BASEBALL', subtitle: 'SWIPE TO SWING', tilt: false, multiplayer: false },
+    { id: 'pocket-slot', title: 'POCKET SLOT', subtitle: 'TAP TO SPIN', tilt: false, multiplayer: false },
+    { id: 'racing-pigs', title: 'RACING PIGS', subtitle: 'PICK YOUR PIG', tilt: false, multiplayer: false },
 ];

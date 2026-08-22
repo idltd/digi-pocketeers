@@ -149,10 +149,46 @@ export class PocketSlotGame {
 
     _drawSymbol(cx, cy, sym) {
         const r = this.renderer;
-        r.circle(cx, cy, 14, sym.color);
+        const ctx = r.ctx;
         r.circle(cx, cy, 14, COLORS.lcdBg);
-        r.strokeCircle(cx, cy, 12, sym.color, 2);
-        r.drawText(sym.id[0], cx, cy - 3, sym.color, 'center', 1);
+        r.strokeCircle(cx, cy, 13, sym.color, 2);
+
+        if (sym.id === 'CHERRY') {
+            ctx.strokeStyle = COLORS.accent3;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - 9);
+            ctx.quadraticCurveTo(cx - 6, cy - 10, cx - 4, cy - 3);
+            ctx.moveTo(cx, cy - 9);
+            ctx.quadraticCurveTo(cx + 4, cy - 10, cx + 4, cy - 2);
+            ctx.stroke();
+            r.circle(cx - 5, cy + 4, 4.5, sym.color);
+            r.circle(cx + 4, cy + 5, 4.5, sym.color);
+        } else if (sym.id === 'LEMON') {
+            ctx.fillStyle = sym.color;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(-0.4);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 9, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        } else if (sym.id === 'BELL') {
+            ctx.fillStyle = sym.color;
+            ctx.beginPath();
+            ctx.arc(cx, cy - 2, 7, Math.PI, 0);
+            ctx.lineTo(cx + 9, cy + 6);
+            ctx.lineTo(cx - 9, cy + 6);
+            ctx.closePath();
+            ctx.fill();
+            r.rect(cx - 2, cy - 11, 4, 3, sym.color);
+            r.circle(cx, cy + 9, 2.5, sym.color);
+        } else if (sym.id === 'BAR') {
+            r.roundRect(cx - 12, cy - 7, 24, 14, 3, sym.color);
+            r.drawText('BAR', cx, cy - 3, COLORS.bg, 'center', 1);
+        } else if (sym.id === 'SEVEN') {
+            r.drawText('7', cx, cy - 6, sym.color, 'center', 2);
+        }
     }
 
     _renderHud() {

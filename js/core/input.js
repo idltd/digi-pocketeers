@@ -35,6 +35,14 @@ class Input {
         this._onOrientation = this._onOrientation.bind(this);
     }
 
+    // Public coordinate transform for callers that need canvas-space coords
+    // directly inside a raw DOM event handler (e.g. to call a gesture-gated
+    // browser API like requestFullscreen synchronously, before our one-frame-
+    // deferred tap processing would otherwise reach it).
+    toCanvasCoords(clientX, clientY) {
+        return this._toCanvas(clientX, clientY);
+    }
+
     attach(canvas) {
         this.canvas = canvas;
         canvas.addEventListener('pointerdown', (e) => this._onDown(e));
