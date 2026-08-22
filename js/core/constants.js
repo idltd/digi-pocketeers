@@ -1,7 +1,20 @@
 // Shared constants for the Pocketeers hub and all games.
 
+// Most phone screens are much taller/narrower than a fixed 3:4 box, so a
+// hardcoded 240x320 canvas gets letterboxed (black bars) by object-fit:
+// contain even outside fullscreen. Match the canvas height to the actual
+// viewport's aspect ratio instead, keeping width fixed at 240 so every
+// game's width-relative pixel tuning (ball radii, wall thickness, etc.)
+// stays valid - only vertical layout needs to be aspect-ratio-agnostic,
+// which PLAY_HEIGHT-derived game layouts already are. Clamped to a sane
+// range so a desktop window or tablet doesn't produce a bizarre shape.
+const viewportRatio = typeof window !== 'undefined' && window.innerWidth
+    ? window.innerHeight / window.innerWidth
+    : 320 / 240;
+const CLAMPED_RATIO = Math.max(1.3, Math.min(2.3, viewportRatio));
+
 export const CANVAS_WIDTH = 240;
-export const CANVAS_HEIGHT = 320;
+export const CANVAS_HEIGHT = Math.round(CANVAS_WIDTH * CLAMPED_RATIO);
 
 export const FRAME_TIME = 1000 / 60;
 
