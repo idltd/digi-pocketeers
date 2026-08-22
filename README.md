@@ -70,6 +70,16 @@ hub.
   on a LAN. It works over `https://` or `localhost`. The tilt-permission screen shows a
   live "SECURE PAGE: YES/NO" diagnostic so this is obvious instead of looking like a
   broken control.
+- **Brave browser blocks Motion Sensors by default, per-site, with no permission
+  prompt at all.** `chrome://settings/content/sensors` (or search Settings for
+  "Motion sensors") — if it's set to "Not allowed" for the site, `deviceorientation`
+  events never fire and `DeviceOrientationEvent.requestPermission()` (where it exists)
+  still resolves "granted", so nothing in the web platform API surface signals that
+  anything is wrong. This was the actual root cause the one time tilt "didn't work"
+  despite HTTPS and a correct permission flow. `input.js` now tracks
+  `tiltEventReceived` (set the first time a `deviceorientation` event actually fires)
+  and the in-game HUD swaps its tilt-value readout for "TILT BLOCKED - CHECK SITE
+  PERMS" if permission reports granted but ~1.5s pass with zero events received.
 - iOS 13+ additionally requires an explicit user-gesture permission prompt for
   `DeviceOrientationEvent`; the hub shows a one-time "tap to allow tilt" screen before
   entering any tilt-based game, with a fallback ("tap here to use drag-to-steer

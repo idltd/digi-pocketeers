@@ -203,6 +203,7 @@ class Hub {
     _enterGame(meta) {
         particles.clear();
         this.activeMeta = meta;
+        this._framesInGame = 0;
         this.activeGame = createGame(meta.id, {
             renderer: this.renderer,
             audio,
@@ -229,6 +230,7 @@ class Hub {
                 return;
             }
         }
+        this._framesInGame++;
         this.activeGame.update(dt);
     }
 
@@ -350,8 +352,14 @@ class Hub {
         this.activeGame.render();
 
         if (this.activeMeta.tilt) {
-            const t = input.getTilt();
-            this.renderer.drawText(`T ${t.x.toFixed(2)},${t.y.toFixed(2)}`, 2, CANVAS_HEIGHT - 8, COLORS.accentDim, 'left', 1);
+            const blocked = input.tiltPermission === 'granted' && input.tiltSupported
+                && !input.tiltEventReceived && this._framesInGame > 90;
+            if (blocked) {
+                r.drawText('TILT BLOCKED - CHECK SITE PERMS', 2, CANVAS_HEIGHT - 8, COLORS.danger, 'left', 1);
+            } else {
+                const t = input.getTilt();
+                r.drawText(`T ${t.x.toFixed(2)},${t.y.toFixed(2)}`, 2, CANVAS_HEIGHT - 8, COLORS.accentDim, 'left', 1);
+            }
         }
     }
 }

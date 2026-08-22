@@ -28,6 +28,13 @@ class Input {
         this.tiltPermission = 'unknown'; // unknown | granted | denied | unsupported | not-needed
         this._tiltCalibration = null; // { beta, gamma } captured at calibration time
 
+        // Some browsers (e.g. Brave, via its Motion Sensors site setting) block
+        // deviceorientation events entirely with no permission prompt and no
+        // error - tiltPermission just reports 'granted' and events never fire.
+        // Track whether we've ever actually received one so games/hub can tell
+        // "granted but silently blocked" apart from "granted and working".
+        this.tiltEventReceived = false;
+
         this._downX = 0;
         this._downY = 0;
         this._downTime = 0;
@@ -165,6 +172,7 @@ class Input {
     }
 
     _onOrientation(e) {
+        this.tiltEventReceived = true;
         if (e.beta === null || e.gamma === null) return;
         if (this._tiltCalibration === 'pending') {
             this._tiltCalibration = { beta: e.beta, gamma: e.gamma };
