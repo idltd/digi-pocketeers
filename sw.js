@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pocketeers-v2';
+const CACHE_NAME = 'pocketeers-v3';
 
 const ASSETS = [
     './',
@@ -10,6 +10,7 @@ const ASSETS = [
     './js/core/audio.js',
     './js/core/renderer.js',
     './js/core/input.js',
+    './js/core/particles.js',
     './js/core/hub.js',
     './js/games/index.js',
     './js/games/amazing-maze.js',
@@ -19,6 +20,7 @@ const ASSETS = [
     './js/games/target-range.js',
     './js/games/baseball.js',
     './js/games/pocket-slot.js',
+    './js/games/racing-pigs.js',
     './assets/icons/icon-192.png',
     './assets/icons/icon-512.png',
 ];

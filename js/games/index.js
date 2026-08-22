@@ -6,6 +6,7 @@ import { DerbyGame } from './derby.js';
 import { TargetRangeGame } from './target-range.js';
 import { BaseballGame } from './baseball.js';
 import { PocketSlotGame } from './pocket-slot.js';
+import { RacingPigsGame } from './racing-pigs.js';
 
 // Games not yet built fall back to this placeholder so the hub never breaks.
 class ComingSoonGame {
@@ -32,6 +33,7 @@ const BUILT = {
     'target-range': TargetRangeGame,
     'baseball': BaseballGame,
     'pocket-slot': PocketSlotGame,
+    'racing-pigs': RacingPigsGame,
 };
 
 export function createGame(id, deps) {

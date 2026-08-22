@@ -3,7 +3,7 @@
 **A cutesy, candy-colored tribute to classic Tomy Pocketeers handheld games, reborn for your phone.**
 
 [![Play now](https://img.shields.io/badge/play-digi%20pocketeers-ff3d81?style=for-the-badge)](https://idltd.github.io/digi-pocketeers/)
-[![Games](https://img.shields.io/badge/games-7-00e5ff)](#whats-in-the-box)
+[![Games](https://img.shields.io/badge/games-8-00e5ff)](#whats-in-the-box)
 [![PWA](https://img.shields.io/badge/PWA-offline--capable-7cff6b)](#architecture)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-b69cff)](LICENSE)
 
@@ -18,7 +18,7 @@ not an official Tomy product.
 
 ## What's in the box
 
-One hub app, seven games, all sharing the same rendering/audio/input engine:
+One hub app, eight games, all sharing the same rendering/audio/input engine:
 
 | Game | Mechanic | Control |
 | --- | --- | --- |
@@ -29,16 +29,20 @@ One hub app, seven games, all sharing the same rendering/audio/input engine:
 | Target Range | Targets pop up and expire; tap them before they vanish | Tap |
 | Baseball | Pitches fall down the screen; swipe at the right moment to hit | Swipe |
 | Pocket Slot | Three-reel fruit machine, spend credits to spin | Tap |
+| Racing Pigs | Pick a pig; lanes of pigs waddle-stop-snort their way up the screen at random, first to the line wins | Tap to pick |
 
 ## Architecture
 
 - Pure vanilla JS, ES6 modules, no build step, no dependencies.
-- Fixed internal canvas resolution (240×320 portrait), scaled with
-  `object-fit: contain` + `image-rendering: pixelated`.
+- Canvas resolution is 240 wide, height computed from the actual device's aspect
+  ratio at load time (clamped to a sane range) so `object-fit: contain` doesn't
+  letterbox the game on phone screens much taller/narrower than a fixed 3:4 box.
+  Rendered at a HiDPI backing resolution (device pixel ratio, capped at 3x) so
+  text and shapes stay crisp instead of nearest-neighbor upscaled.
 - All graphics are drawn procedurally on canvas — no image assets except the
-  generated PWA icons. Text uses a hand-drawn pixel bitmap font (`fillText` is never
-  used, since it anti-aliases and blurs under pixelated scaling). A shared particle
-  system and screen-shake give hits/wins some juice.
+  generated PWA icons. Text is rendered with a real font (Google Fonts "Fredoka",
+  a rounded playful face matching the candy palette) rather than a bitmap font. A
+  shared particle system and screen-shake give hits/wins some juice.
 - All audio is procedural (Web Audio API oscillators/noise), no sound files.
 - Progressive Web App: `manifest.json` + `sw.js` (cache-first, offline-capable).
 
@@ -110,15 +114,30 @@ tunnel for full testing.
 ## Future work
 
 - **Multiplayer**: one device becomes "master", spins up a local access point, and
-  shows a QR code for others to join. Per-game decision still to be worked out between
-  joint/simultaneous play and everyone spectating the current player's screen.
+  shows a QR code for others to join. Rather than one bespoke networking model per
+  game, the plan is a small set of generic modes any game can opt into:
+  - **Turns** — one shared game state; everyone watches the current player's screen,
+    turn passes around the group.
+  - **Race** — everyone plays the same game simultaneously, each on their own device,
+    racing for the best outcome (leaderboard-style).
+  - **Mega** — everyone plays simultaneously and can see everyone else's screen too
+    (needs a way to visually tell players apart — pig color, player initials, etc).
+  - **Custom** — bespoke per-game multiplayer logic that doesn't fit the generic
+    modes, e.g. a later Racing Pigs version where you can actively help your own pig
+    or hinder someone else's rather than just picking and watching.
+  Racing Pigs (see below) is the natural first candidate once this lands, since it's
+  already structured around per-player pig ownership.
 
 ## Status
 
-All 7 games are implemented and playable, running on the candy-colored palette with
-particle/screen-shake feedback. Verified working on Android over HTTPS. Not yet
-verified on iOS — worth checking the tilt-permission flow and touch-target sizing
-there before calling any game "done".
+All 8 games are implemented and playable, running on the candy-colored palette with
+particle/screen-shake feedback, a real font (Fredoka) instead of a bitmap font, and a
+canvas that matches the device's aspect ratio instead of letterboxing. Verified working
+on Android over HTTPS, including tilt. Not yet verified on iOS — worth checking the
+tilt-permission flow and touch-target sizing there before calling any game "done".
+Racing Pigs is solo-only v1: pick a pig, watch it waddle/stop/snort its way to the
+finish line at random — no active skill yet, that's the "custom" multiplayer mode
+candidate above.
 
 ## License
 
