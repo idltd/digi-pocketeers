@@ -1,35 +1,19 @@
 import { CANVAS_WIDTH, CANVAS_HEIGHT, COLORS } from './constants.js';
 
-// 4px wide, 5px tall bitmap font. Each row is 4 bits (bit3 = leftmost pixel).
-const CHAR_W = 4;
-const CHAR_H = 5;
-const CHAR_GAP = 1;
-
-const PIXEL_FONT = {
-    'A': [0x6,0x9,0xF,0x9,0x9], 'B': [0xE,0x9,0xE,0x9,0xE], 'C': [0x7,0x8,0x8,0x8,0x7],
-    'D': [0xE,0x9,0x9,0x9,0xE], 'E': [0xF,0x8,0xE,0x8,0xF], 'F': [0xF,0x8,0xE,0x8,0x8],
-    'G': [0x7,0x8,0xB,0x9,0x7], 'H': [0x9,0x9,0xF,0x9,0x9], 'I': [0x7,0x2,0x2,0x2,0x7],
-    'J': [0x1,0x1,0x1,0x9,0x6], 'K': [0x9,0xA,0xC,0xA,0x9], 'L': [0x8,0x8,0x8,0x8,0xF],
-    'M': [0x9,0xF,0xF,0x9,0x9], 'N': [0x9,0xD,0xB,0x9,0x9], 'O': [0x6,0x9,0x9,0x9,0x6],
-    'P': [0xE,0x9,0xE,0x8,0x8], 'Q': [0x6,0x9,0x9,0xB,0x7], 'R': [0xE,0x9,0xE,0xA,0x9],
-    'S': [0x7,0x8,0x6,0x1,0xE], 'T': [0x7,0x2,0x2,0x2,0x2], 'U': [0x9,0x9,0x9,0x9,0x6],
-    'V': [0x9,0x9,0x9,0x9,0x6], 'W': [0x9,0x9,0xF,0xF,0x9], 'X': [0x9,0x9,0x6,0x9,0x9],
-    'Y': [0x9,0x9,0x6,0x2,0x2], 'Z': [0xF,0x1,0x6,0x8,0xF],
-    '0': [0x6,0x9,0x9,0x9,0x6], '1': [0x2,0x6,0x2,0x2,0x7], '2': [0xE,0x1,0x6,0x8,0xF],
-    '3': [0xE,0x1,0x6,0x1,0xE], '4': [0x9,0x9,0xF,0x1,0x1], '5': [0xF,0x8,0xE,0x1,0xE],
-    '6': [0x6,0x8,0xE,0x9,0x6], '7': [0xF,0x1,0x2,0x4,0x4], '8': [0x6,0x9,0x6,0x9,0x6],
-    '9': [0x6,0x9,0x7,0x1,0x6],
-    ' ': [0x0,0x0,0x0,0x0,0x0], '!': [0x4,0x4,0x4,0x0,0x4], ':': [0x0,0x4,0x0,0x4,0x0],
-    '.': [0x0,0x0,0x0,0x0,0x4], '-': [0x0,0x0,0xE,0x0,0x0], '_': [0x0,0x0,0x0,0x0,0xF],
-    '/': [0x1,0x2,0x4,0x8,0x0], '\'': [0x4,0x4,0x0,0x0,0x0], '?': [0x6,0x1,0x2,0x0,0x2],
-    '>': [0x4,0x2,0x1,0x2,0x4], '<': [0x1,0x2,0x4,0x2,0x1],
-};
+const FONT_FAMILY = '"Fredoka", system-ui, -apple-system, sans-serif';
 
 export class Renderer {
     constructor(canvas) {
         this.canvas = canvas;
+        // Render at native device resolution (capped) rather than the fixed
+        // 240x320 logical size, so smooth fonts/curves stay crisp instead of
+        // being nearest-neighbor upscaled. All drawing calls still use the
+        // 240x320 logical coordinate space via ctx.scale.
+        this.dpr = Math.min(window.devicePixelRatio || 1, 3);
+        canvas.width = CANVAS_WIDTH * this.dpr;
+        canvas.height = CANVAS_HEIGHT * this.dpr;
         this.ctx = canvas.getContext('2d');
-        this.ctx.imageSmoothingEnabled = false;
+        this.ctx.imageSmoothingEnabled = true;
         this._shakeMag = 0;
         this._shakeFrames = 0;
     }
@@ -41,7 +25,9 @@ export class Renderer {
             oy = (Math.random() * 2 - 1) * this._shakeMag;
             this._shakeFrames--;
         }
-        this.ctx.setTransform(1, 0, 0, 1, ox, oy);
+        // Reapply the DPR scale every frame (setTransform is absolute, not
+        // cumulative) with the shake offset folded into the translation.
+        this.ctx.setTransform(this.dpr, 0, 0, this.dpr, ox * this.dpr, oy * this.dpr);
         this.ctx.fillStyle = color;
         this.ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
@@ -54,19 +40,19 @@ export class Renderer {
 
     rect(x, y, w, h, color) {
         this.ctx.fillStyle = color;
-        this.ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
+        this.ctx.fillRect(x, y, w, h);
     }
 
     strokeRect(x, y, w, h, color, lineWidth = 1) {
         this.ctx.strokeStyle = color;
         this.ctx.lineWidth = lineWidth;
-        this.ctx.strokeRect(Math.floor(x) + 0.5, Math.floor(y) + 0.5, Math.floor(w), Math.floor(h));
+        this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     }
 
     circle(x, y, r, color) {
         this.ctx.fillStyle = color;
         this.ctx.beginPath();
-        this.ctx.arc(Math.floor(x), Math.floor(y), r, 0, Math.PI * 2);
+        this.ctx.arc(x, y, r, 0, Math.PI * 2);
         this.ctx.fill();
     }
 
@@ -82,7 +68,7 @@ export class Renderer {
         const rad = Math.min(radius, w / 2, h / 2);
         this.ctx.fillStyle = color;
         this.ctx.beginPath();
-        this.ctx.roundRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h), rad);
+        this.ctx.roundRect(x, y, w, h, rad);
         this.ctx.fill();
     }
 
@@ -90,7 +76,7 @@ export class Renderer {
         this.ctx.strokeStyle = color;
         this.ctx.lineWidth = lineWidth;
         this.ctx.beginPath();
-        this.ctx.arc(Math.floor(x), Math.floor(y), r, 0, Math.PI * 2);
+        this.ctx.arc(x, y, r, 0, Math.PI * 2);
         this.ctx.stroke();
     }
 
@@ -98,38 +84,26 @@ export class Renderer {
         this.ctx.strokeStyle = color;
         this.ctx.lineWidth = lineWidth;
         this.ctx.beginPath();
-        this.ctx.moveTo(Math.floor(x1), Math.floor(y1));
-        this.ctx.lineTo(Math.floor(x2), Math.floor(y2));
+        this.ctx.moveTo(x1, y1);
+        this.ctx.lineTo(x2, y2);
         this.ctx.stroke();
     }
 
+    _font(scale) {
+        const px = Math.round(6 * scale + 6);
+        return `600 ${px}px ${FONT_FAMILY}`;
+    }
+
     drawText(text, x, y, color, align = 'left', scale = 1) {
-        text = text.toString().toUpperCase();
-        const cellW = (CHAR_W + CHAR_GAP) * scale;
-        const totalW = text.length * cellW - CHAR_GAP * scale;
-
-        let startX = Math.floor(x);
-        if (align === 'center') startX = Math.floor(x - totalW / 2);
-        else if (align === 'right') startX = Math.floor(x - totalW);
-
+        this.ctx.font = this._font(scale);
         this.ctx.fillStyle = color;
-        for (let i = 0; i < text.length; i++) {
-            const glyph = PIXEL_FONT[text[i]];
-            if (!glyph) continue;
-            const cx = startX + i * cellW;
-            for (let row = 0; row < CHAR_H; row++) {
-                const bits = glyph[row];
-                for (let col = 0; col < CHAR_W; col++) {
-                    if (bits & (1 << (3 - col))) {
-                        this.ctx.fillRect(cx + col * scale, Math.floor(y) + row * scale, scale, scale);
-                    }
-                }
-            }
-        }
+        this.ctx.textAlign = align === 'right' ? 'right' : align === 'center' ? 'center' : 'left';
+        this.ctx.textBaseline = 'top';
+        this.ctx.fillText(text.toString(), x, y);
     }
 
     textWidth(text, scale = 1) {
-        const cellW = (CHAR_W + CHAR_GAP) * scale;
-        return text.toString().length * cellW - CHAR_GAP * scale;
+        this.ctx.font = this._font(scale);
+        return this.ctx.measureText(text.toString()).width;
     }
 }

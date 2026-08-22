@@ -9,17 +9,17 @@ import { particles } from './particles.js';
 import { getHighScore, getFlag, setFlag } from './storage.js';
 import { createGame } from '../games/index.js';
 
-const TAB_Y = 16;
-const TAB_H = 16;
-const STATUS_Y = 36;
-const LIST_TOP = 44;
-const ROW_H = 38;
+// Sized generously for the real (taller) font metrics of Fredoka, not the old
+// tight 5px bitmap font this layout originally assumed.
+const TAB_Y = 18;
+const TAB_H = 22;
+const STATUS_Y = 50;
+const LIST_TOP = 66;
+const ROW_H = 44;
 
 class Hub {
     constructor() {
         this.canvas = document.getElementById('game-canvas');
-        this.canvas.width = CANVAS_WIDTH;
-        this.canvas.height = CANVAS_HEIGHT;
         this.renderer = new Renderer(this.canvas);
         input.attach(this.canvas);
         this.canvas.addEventListener('pointerup', (e) => this._onRawGesture(e));
@@ -253,16 +253,16 @@ class Hub {
     _renderHub() {
         const r = this.renderer;
         r.drawText('DIGI POCKETEERS', CANVAS_WIDTH / 2, 4, COLORS.accent, 'center', 2);
-        r.drawText('[ ]', CANVAS_WIDTH - 20, 3, COLORS.accent2, 'left', 1);
+        r.drawText('[ ]', CANVAS_WIDTH - 24, 3, COLORS.accent2, 'left', 1);
         if (this._fullscreenError) {
-            r.drawText(this._fullscreenError, CANVAS_WIDTH - 4, 13, COLORS.danger, 'right', 1);
+            r.drawText('FS ERROR: ' + this._fullscreenError, CANVAS_WIDTH / 2, 42, COLORS.danger, 'center', 1);
         }
 
         const soloOn = this.tab === 'solo';
         r.roundRect(4, TAB_Y, CANVAS_WIDTH / 2 - 6, TAB_H, 4, soloOn ? COLORS.accent : COLORS.lcdBg);
         r.roundRect(CANVAS_WIDTH / 2 + 2, TAB_Y, CANVAS_WIDTH / 2 - 6, TAB_H, 4, !soloOn ? COLORS.accent2 : COLORS.lcdBg);
-        r.drawText('SOLO', CANVAS_WIDTH / 4, TAB_Y + 5, soloOn ? COLORS.bg : COLORS.white, 'center', 1);
-        r.drawText('MULTIPLAY', (CANVAS_WIDTH * 3) / 4, TAB_Y + 5, !soloOn ? COLORS.bg : COLORS.white, 'center', 1);
+        r.drawText('SOLO', CANVAS_WIDTH / 4, TAB_Y + 6, soloOn ? COLORS.bg : COLORS.white, 'center', 1);
+        r.drawText('MULTIPLAY', (CANVAS_WIDTH * 3) / 4, TAB_Y + 6, !soloOn ? COLORS.bg : COLORS.white, 'center', 1);
 
         if (this.tab === 'solo') this._renderSoloList();
         else this._renderMultiplay();
@@ -287,13 +287,13 @@ class Hub {
             if (y + ROW_H < LIST_TOP || y > CANVAS_HEIGHT) return;
             const glow = Math.sin(performance.now() / 500 + i) * 0.5 + 0.5;
             const rowColor = i % 3 === 0 ? COLORS.accent : i % 3 === 1 ? COLORS.accent2 : COLORS.accent3;
-            r.roundRect(4, y, CANVAS_WIDTH - 8, ROW_H - 5, 6, COLORS.lcdBg);
-            r.strokeRect(4, y, CANVAS_WIDTH - 8, ROW_H - 5, rowColor, 1 + glow);
-            r.drawText(meta.title, 10, y + 7, COLORS.white, 'left', 1);
-            r.drawText(meta.subtitle, 10, y + 19, rowColor, 'left', 1);
+            r.roundRect(4, y, CANVAS_WIDTH - 8, ROW_H - 6, 6, COLORS.lcdBg);
+            r.strokeRect(4, y, CANVAS_WIDTH - 8, ROW_H - 6, rowColor, 1 + glow);
+            r.drawText(meta.title, 10, y + 6, COLORS.white, 'left', 1);
+            r.drawText(meta.subtitle, 10, y + 22, rowColor, 'left', 1);
             const hs = getHighScore(meta.id);
             if (hs > 0) {
-                r.drawText('HI ' + hs, CANVAS_WIDTH - 10, y + 7, COLORS.warn, 'right', 1);
+                r.drawText('HI ' + hs, CANVAS_WIDTH - 10, y + 6, COLORS.warn, 'right', 1);
             }
         });
         ctx.restore();
