@@ -34,6 +34,12 @@ export class RacingPigsGame {
         this._buildPigs();
     }
 
+    // Which pigs this device is responsible for making noise about. Solo that is
+    // just the picked lane; multiplayer will widen this to the lanes owned here.
+    _isMine(pig) {
+        return pig.lane === this.pickedLane;
+    }
+
     _laneY(i) {
         const laneH = (CANVAS_WIDTH - 20) / LANE_COUNT;
         return { x: 10 + laneH * (i + 0.5), laneH };
@@ -47,7 +53,7 @@ export class RacingPigsGame {
                 color: PIG_COLORS[i],
                 y: TRACK_BOTTOM,
                 phase: 'stop',
-                phaseTimer: Math.floor(randRange(10, 30)),
+                phaseTimer: Math.floor(randRange(20, 50)),
                 snortTimer: 0,
                 finished: false,
                 place: 0,
@@ -98,16 +104,19 @@ export class RacingPigsGame {
 
             pig.phaseTimer--;
             if (pig.phase === 'waddle') {
-                pig.y -= randRange(0.6, 1.6);
+                pig.y -= randRange(0.35, 0.9);
                 if (pig.phaseTimer <= 0) {
                     pig.phase = 'stop';
-                    pig.phaseTimer = Math.floor(randRange(8, 22));
-                    pig.snortTimer = 10;
+                    pig.phaseTimer = Math.floor(randRange(14, 34));
+                    // Stopping is a snort: puff for every pig, but only ever hear
+                    // your own - in multiplayer each device plays its own pig only.
+                    pig.snortTimer = 12;
+                    if (this._isMine(pig)) this.audio.honk();
                 }
             } else {
                 if (pig.phaseTimer <= 0) {
                     pig.phase = 'waddle';
-                    pig.phaseTimer = Math.floor(randRange(10, 28));
+                    pig.phaseTimer = Math.floor(randRange(16, 40));
                 }
             }
             if (pig.snortTimer > 0) pig.snortTimer--;

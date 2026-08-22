@@ -95,6 +95,11 @@ class PocketAudio {
     spin() { this.tone(220, 0.5, 'sawtooth', 0.06, 400); }
     reelStop() { this.tone(150, 0.08, 'square', 0.12); }
     jackpot() { this.notes([523, 659, 784, 1047, 1319], 0.08, 'square', 0.18); }
+    // Pig snort: a short nasal squawk that drops in pitch, with a breathy noise tail.
+    honk() {
+        this.tone(420, 0.09, 'sawtooth', 0.13, 260);
+        setTimeout(() => this.noise(0.07, 0.1, 900), 60);
+    }
 }
 
 export const audio = new PocketAudio();
