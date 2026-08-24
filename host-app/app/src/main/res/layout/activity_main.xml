@@ -1,0 +1,24 @@
+<!-- A doorway, not a screen. It is on show for about a second while the server
+     starts, and afterwards only to report a failure or stop the session. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:gravity="center" android:padding="32dp">
+
+  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+      android:text="Digi Pocketeers" android:textAppearance="?attr/textAppearanceHeadlineMedium" />
+
+  <ProgressBar android:id="@+id/progress" android:layout_width="wrap_content" android:layout_height="wrap_content"
+      android:layout_margin="24dp" />
+
+  <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content"
+      android:gravity="center" android:textIsSelectable="true" />
+
+  <com.google.android.material.button.MaterialButton android:id="@+id/retry"
+      android:layout_width="wrap_content" android:layout_height="wrap_content"
+      android:layout_marginTop="24dp" android:text="Try again" android:visibility="gone" />
+
+  <com.google.android.material.button.MaterialButton android:id="@+id/stop"
+      style="@style/Widget.Material3.Button.TextButton"
+      android:layout_width="wrap_content" android:layout_height="wrap_content"
+      android:layout_marginTop="16dp" android:text="Stop everything" android:textColor="#B3261E" android:visibility="gone" />
+</LinearLayout>

@@ -1,3 +1,13 @@
 .claude/
 node_modules/
 *.log
+
+# Android / Gradle build output
+host-app/.gradle/
+host-app/.gradle-user/
+host-app/build/
+host-app/app/build/
+*.apk
+local.properties
+host-app/.android-user/
+host-app/app/src/main/assets/
