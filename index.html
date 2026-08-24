@@ -21,7 +21,12 @@
     </div>
     <script type="module" src="js/core/hub.js"></script>
     <script>
-        if ('serviceWorker' in navigator) {
+        // The host app serves every file off this phone, so a cache there is
+        // pure liability - and a worker registered on this origin by an older
+        // build would answer from it. Registering is for the public web build
+        // only; sw.js removes itself if it ever wakes on a host-app origin,
+        // because an index.html this old cannot be trusted to do it.
+        if ('serviceWorker' in navigator && !window.POCKETEERS_PUBLIC_ORIGIN) {
             window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
         }
     </script>
