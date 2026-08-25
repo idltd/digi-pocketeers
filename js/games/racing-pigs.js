@@ -231,6 +231,7 @@ export class RacingPigsGame {
         // S_RACING
         for (const pig of this.pigs) {
             if (pig.finished) continue;
+            if (this.mp && this.owners[pig.lane] === undefined) continue;
 
             pig.phaseTimer--;
             if (pig.phase === 'waddle') {
@@ -302,6 +303,7 @@ export class RacingPigsGame {
         }
 
         for (const pig of this.pigs) {
+            if (this.mp && this.owners[pig.lane] === undefined && this.state !== S_PICK) continue;
             const { x } = this._laneY(pig.lane);
             this._drawPig(x, pig);
             if (this.pickedLane === pig.lane) {
