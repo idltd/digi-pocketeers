@@ -1,0 +1,7 @@
+
+# These run on Linux (devbuild's remote container). CRLF makes the kernel
+# report "required file not found" for the interpreter, which reads as a
+# missing file rather than a mangled one.
+gradlew text eol=lf
+host-app/gradlew text eol=lf
+*.sh text eol=lf
