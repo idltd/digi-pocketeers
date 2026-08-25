@@ -11,7 +11,7 @@
 // by changing nothing but the URL.
 //
 // Wire protocol (JSON both ways):
-//   -> {t:'join', room, name}
+//   -> {t:'join', room, name, token, create}
 //   <- {t:'welcome', id, host, players}      first joiner of a room is host
 //   <- {t:'players', players}                 broadcast on any join/leave
 //   -> {t:'relay', to:'all'|<id>, data}
@@ -21,11 +21,46 @@
 const RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 8000;
 
+// Who this browser is, across a socket that keeps dropping.
+//
+// A phone at a pub table locks, takes a call, goes in a pocket, walks out of
+// range of a hotspot that is sitting on a beermat. Every one of those closes
+// the socket. Without a token the relay has no way to tell a returning player
+// from a new one, so somebody who glanced at their phone comes back as a
+// stranger with no pig - and the table has to start again.
+//
+// sessionStorage, not localStorage: it is per tab, so two tabs on one phone
+// are honestly two players, and it survives the reload and the lock, which is
+// the whole point. Where it is unavailable - a locked-down browser, private
+// mode on an old iOS - the in-memory value still holds for the life of the
+// page, which covers the reconnects that actually happen.
+const TOKEN_KEY = 'pocketeers.clientToken';
+let memoryToken = null;
+
+function clientToken() {
+    if (memoryToken) return memoryToken;
+    let token = null;
+    try {
+        token = sessionStorage.getItem(TOKEN_KEY);
+    } catch (_) {
+        // Storage disabled. The in-memory token below still does the job.
+    }
+    if (!token) {
+        token = (crypto.randomUUID ? crypto.randomUUID()
+            : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+        try { sessionStorage.setItem(TOKEN_KEY, token); } catch (_) {}
+    }
+    memoryToken = token;
+    return token;
+}
+
 export class Net {
     constructor() {
         this.ws = null;
         this.room = null;
         this.name = null;
+        this.token = clientToken();
+        this.create = false;
         this.id = null;
         this.isHost = false;
         this.players = [];
@@ -64,9 +99,14 @@ export class Net {
         return `${proto}//${location.host}/ws`;
     }
 
-    connect(room, name, url = Net.defaultUrl()) {
+    // create: only the master opens a room. A guest who scans a stale code
+    // must be told there is no game rather than silently opening an empty room
+    // of their own and sitting in it as its host, which reads as the code
+    // having simply been ignored.
+    connect(room, name, { create = false, url = Net.defaultUrl() } = {}) {
         this.room = room;
         this.name = name;
+        this.create = create;
         this._url = url;
         this._wantOpen = true;
         this._open();
@@ -89,7 +129,12 @@ export class Net {
             this.connected = true;
             this.lastError = null;
             this._reconnectDelay = RECONNECT_DELAY;
-            this._sendRaw({ t: 'join', room: this.room, name: this.name });
+            // The name is omitted rather than sent as null: a JSON null
+            // survives a relay's optString as the literal text "null", and a
+            // table of players called null is nobody's idea of a good evening.
+            const join = { t: 'join', room: this.room, token: this.token, create: this.create };
+            if (this.name) join.name = this.name;
+            this._sendRaw(join);
             this._emit('status', this);
         };
 

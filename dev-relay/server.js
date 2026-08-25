@@ -53,7 +53,12 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server, path: '/ws' });
 
-/** room code -> { players: Map<id, {ws, name}>, hostId } */
+// Kept deliberately in step with host-app's RoomManager.kt. This is the relay
+// used at a desk; that one is the relay used in the pub. A difference between
+// them means an evening of testing behaviour that will not exist on the night.
+const GRACE_MS = 10000;
+
+/** room code -> { players: Map<id, {ws, name, token, removal}>, hostId } */
 const rooms = new Map();
 let nextId = 1;
 
@@ -62,18 +67,35 @@ function playerList(room) {
         id,
         name: p.name,
         host: id === room.hostId,
+        present: p.ws !== null,
     }));
 }
 
 function broadcast(room, obj) {
     const raw = JSON.stringify(obj);
     for (const p of room.players.values()) {
-        if (p.ws.readyState === p.ws.OPEN) p.ws.send(raw);
+        if (p.ws && p.ws.readyState === p.ws.OPEN) p.ws.send(raw);
     }
 }
 
 function send(ws, obj) {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj));
+}
+
+// A phone that locks, takes a call or wanders out of range closes its socket.
+// It is still a player at the table, so hold its place for a moment rather
+// than deleting it and handing whoever comes back a brand new identity.
+function removeIfAbsent(roomCode, room, id) {
+    const player = room.players.get(id);
+    if (!player || player.ws) return;
+    room.players.delete(id);
+    if (room.hostId === id) room.hostId = room.players.keys().next().value ?? null;
+    if (room.players.size === 0) {
+        rooms.delete(roomCode);
+        console.log(`[${roomCode}] closed`);
+        return;
+    }
+    broadcast(room, { t: 'players', players: playerList(room) });
 }
 
 wss.on('connection', (ws) => {
@@ -95,18 +117,44 @@ wss.on('connection', (ws) => {
                 send(ws, { t: 'error', message: 'missing room code' });
                 return;
             }
-            if (!rooms.has(roomCode)) rooms.set(roomCode, { players: new Map(), hostId: null });
+            // Only the master creates rooms. Without this a guest who scans a
+            // stale code silently opens an empty room of their own and sits in
+            // it as its host, which reads as the code being ignored.
+            if (!rooms.has(roomCode)) {
+                if (!m.create) {
+                    send(ws, { t: 'error', message: 'the host has not opened a game yet' });
+                    return;
+                }
+                rooms.set(roomCode, { players: new Map(), hostId: null });
+            }
             room = rooms.get(roomCode);
 
-            id = nextId++;
-            room.players.set(id, { ws, name: String(m.name || `P${id}`).slice(0, 12) });
-            // First one in owns the room; if they leave, the next player is
-            // promoted rather than collapsing the game.
+            const token = typeof m.token === 'string' && m.token ? m.token : null;
+            let existing = null;
+            if (token) {
+                for (const [pid, p] of room.players) if (p.token === token) existing = pid;
+            }
+
+            if (existing !== null) {
+                id = existing;
+                const player = room.players.get(id);
+                if (player.removal) { clearTimeout(player.removal); player.removal = null; }
+                player.ws = ws;
+                console.log(`[${roomCode}] ~${id} back (${room.players.size} in room)`);
+            } else {
+                id = nextId++;
+                room.players.set(id, { ws, name: '', token, removal: null });
+                console.log(`[${roomCode}] +${id} (${room.players.size} in room)`);
+            }
+
+            // A client that sends no name is numbered here. It never sends a
+            // null one - that arrives as the literal string "null".
+            const offered = typeof m.name === 'string' ? m.name.slice(0, 12).trim() : '';
+            room.players.get(id).name = offered || `P${id}`;
             if (room.hostId === null) room.hostId = id;
 
             send(ws, { t: 'welcome', id, host: id === room.hostId, players: playerList(room) });
             broadcast(room, { t: 'players', players: playerList(room) });
-            console.log(`[${roomCode}] +${id} (${room.players.size} in room)`);
             return;
         }
 
@@ -114,26 +162,24 @@ wss.on('connection', (ws) => {
             const out = JSON.stringify({ t: 'msg', from: id, data: m.data });
             if (m.to === 'all') {
                 for (const [pid, p] of room.players) {
-                    if (pid !== id && p.ws.readyState === p.ws.OPEN) p.ws.send(out);
+                    if (pid !== id && p.ws && p.ws.readyState === p.ws.OPEN) p.ws.send(out);
                 }
             } else {
                 const target = room.players.get(Number(m.to));
-                if (target?.ws.readyState === target.ws.OPEN) target.ws.send(out);
+                if (target?.ws && target.ws.readyState === target.ws.OPEN) target.ws.send(out);
             }
         }
     });
 
     ws.on('close', () => {
         if (!room || id === null) return;
-        room.players.delete(id);
-        if (room.hostId === id) {
-            room.hostId = room.players.keys().next().value ?? null;
-        }
-        console.log(`[${roomCode}] -${id} (${room.players.size} left)`);
-        if (room.players.size === 0) {
-            rooms.delete(roomCode);
-            return;
-        }
+        const player = room.players.get(id);
+        if (!player || player.ws !== ws) return;
+        player.ws = null;
+        const code = roomCode;
+        const held = room;
+        player.removal = setTimeout(() => removeIfAbsent(code, held, id), GRACE_MS);
+        console.log(`[${roomCode}] -${id} (held for ${GRACE_MS / 1000}s)`);
         broadcast(room, { t: 'players', players: playerList(room) });
     });
 });

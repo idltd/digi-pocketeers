@@ -91,14 +91,14 @@ export class Session {
     host(name) {
         this.room = makeRoomCode();
         this.isHost = true;
-        net.connect(this.room, name);
+        net.connect(this.room, name, { create: true });
         return this.room;
     }
 
     join(room, name) {
         this.room = room.toUpperCase();
         this.isHost = false;
-        net.connect(this.room, name);
+        net.connect(this.room, name, { create: false });
     }
 
     leave() {
