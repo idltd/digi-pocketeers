@@ -11,6 +11,11 @@ html, body {
 }
 #game-canvas {
     width: 100%; height: 100%; object-fit: contain;
-    cursor: none;
     display: block;
+}
+/* A handheld has no pointer to draw, and a stray arrow parked over the screen
+   spoils the illusion - but on the desktop this is tested on, hiding it leaves
+   you clicking blind. Hide it only where a finger is doing the pointing. */
+@media (pointer: coarse) {
+    #game-canvas { cursor: none; }
 }
