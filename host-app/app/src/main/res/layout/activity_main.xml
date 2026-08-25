@@ -1,24 +1,39 @@
 <!-- A doorway, not a screen. It is on show for about a second while the server
-     starts, and afterwards only to report a failure or stop the session. -->
+     starts, and afterwards only to report a failure.
+
+     It is still drawn in the game's colours rather than the platform's. The
+     player should never see two faces for one product: a stock grey Android
+     panel followed by the game's own is the seam that made the whole thing
+     feel like two apps stapled together. Nothing here asks a question -
+     every choice belongs to the canvas hub the browser is about to open. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:gravity="center" android:padding="32dp">
+    android:orientation="vertical" android:gravity="center" android:padding="32dp"
+    android:background="@color/pocketeers_bg">
 
   <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-      android:text="Digi Pocketeers" android:textAppearance="?attr/textAppearanceHeadlineMedium" />
+      android:text="DIGI" android:textSize="34sp" android:textStyle="bold"
+      android:letterSpacing="0.22" android:textColor="@color/pocketeers_accent" />
+
+  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+      android:text="POCKETEERS" android:textSize="34sp" android:textStyle="bold"
+      android:letterSpacing="0.12" android:textColor="@color/pocketeers_accent" />
 
   <ProgressBar android:id="@+id/progress" android:layout_width="wrap_content" android:layout_height="wrap_content"
-      android:layout_margin="24dp" />
+      android:layout_margin="28dp" android:indeterminateTint="@color/pocketeers_accent2" />
 
   <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content"
-      android:gravity="center" android:textIsSelectable="true" />
+      android:gravity="center" android:textIsSelectable="true"
+      android:textColor="@color/pocketeers_dim" android:textSize="13sp" />
 
   <com.google.android.material.button.MaterialButton android:id="@+id/retry"
       android:layout_width="wrap_content" android:layout_height="wrap_content"
-      android:layout_marginTop="24dp" android:text="Try again" android:visibility="gone" />
+      android:layout_marginTop="24dp" android:text="Try again" android:visibility="gone"
+      android:backgroundTint="@color/pocketeers_panel" android:textColor="@color/pocketeers_accent2" />
 
   <com.google.android.material.button.MaterialButton android:id="@+id/stop"
       style="@style/Widget.Material3.Button.TextButton"
       android:layout_width="wrap_content" android:layout_height="wrap_content"
-      android:layout_marginTop="16dp" android:text="Stop everything" android:textColor="#B3261E" android:visibility="gone" />
+      android:layout_marginTop="16dp" android:text="Stop everything"
+      android:textColor="@color/pocketeers_danger" android:visibility="gone" />
 </LinearLayout>

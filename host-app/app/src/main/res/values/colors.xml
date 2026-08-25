@@ -1,0 +1,10 @@
+<!-- The web app's palette, so the doorway and the game are visibly one product.
+     Kept in step with COLORS in js/core/constants.js. -->
+<resources>
+    <color name="pocketeers_bg">#1a0b2e</color>
+    <color name="pocketeers_panel">#2d1b4e</color>
+    <color name="pocketeers_accent">#ff3d81</color>
+    <color name="pocketeers_accent2">#00e5ff</color>
+    <color name="pocketeers_dim">#c9268f</color>
+    <color name="pocketeers_danger">#ff4757</color>
+</resources>

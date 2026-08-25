@@ -1,7 +1,12 @@
 <resources>
     <style name="Theme.Pocketeers" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">#6750A4</item>
-        <item name="android:fontFamily">sans</item>
+        <item name="colorPrimary">@color/pocketeers_accent</item>
+        <item name="android:fontFamily">sans-serif-black</item>
+        <!-- Painted before the layout inflates, so the doorway never flashes
+             the platform's white at somebody opening the game in a dark pub. -->
+        <item name="android:windowBackground">@color/pocketeers_bg</item>
+        <item name="android:statusBarColor">@color/pocketeers_bg</item>
+        <item name="android:navigationBarColor">@color/pocketeers_bg</item>
     </style>
     <!-- The hotspot activity exists only to be foreground for a few seconds;
          it must never hide the game that asked for it. -->

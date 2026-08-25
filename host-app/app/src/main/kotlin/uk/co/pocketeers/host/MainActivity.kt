@@ -78,6 +78,9 @@ class MainActivity : AppCompatActivity() {
         progress.visibility = if (failed) View.GONE else View.VISIBLE
         retry.visibility = if (failed) View.VISIBLE else View.GONE
         stop.visibility = if (state is HostingState.Running) View.VISIBLE else View.GONE
+        // Words are for failures. A doorway that narrates itself is just a
+        // second front page in a worse typeface.
+        status.visibility = if (failed || hotspot is HotspotState.Failed) View.VISIBLE else View.INVISIBLE
         status.text = when {
             state is HostingState.Failed -> state.message
             state is HostingState.Starting -> state.message

@@ -1,5 +1,5 @@
 import {
-    CANVAS_WIDTH, CANVAS_HEIGHT, HUD_HEIGHT, BACK_BUTTON_W, PLAY_TOP, PLAY_HEIGHT,
+    CANVAS_WIDTH, CANVAS_HEIGHT, HUD_HEIGHT, BACK_BUTTON_W,
     FRAME_TIME, COLORS, GAME_LIST, STATE_HUB, STATE_GAME, STATE_TILT_PROMPT,
 } from './constants.js';
 import { Renderer } from './renderer.js';
@@ -8,16 +8,28 @@ import { audio } from './audio.js';
 import { particles } from './particles.js';
 import { getHighScore, getFlag, setFlag } from './storage.js';
 import { createGame } from '../games/index.js';
-import { session, roomFromUrl, multiplayerGames, relayAvailable, LOBBY, PLAYING } from './multiplayer.js';
+import { session, roomFromUrl, multiplayerGames, relayAvailable, PLAYING } from './multiplayer.js';
+import { hostPhone } from './hostphone.js';
 import { qrMatrix } from './qr.js';
 
-// Sized generously for the real (taller) font metrics of Fredoka, not the old
-// tight 5px bitmap font this layout originally assumed.
-const TAB_Y = 18;
-const TAB_H = 22;
-const STATUS_Y = 50;
-const LIST_TOP = 66;
+// One front page, drawn in the game's own language. Nothing outside this
+// canvas ever asks the player to choose anything - not the APK, which is a
+// doorway with no controls on it, and not a menu behind a menu. Three panels,
+// one tap, and you are in.
+const FRONT = 'front';
+const SOLO = 'solo';
+const MASTER = 'master';
+const JOIN = 'join';
+
+const BACK_Y = 18;
+const BACK_H = 20;
+const LIST_TOP = 46;
 const ROW_H = 44;
+
+// Front panels: full width, tall enough to hit with a thumb across a table.
+const PANEL_H = 52;
+const PANEL_GAP = 12;
+const PANEL_TOP = 62;
 
 class Hub {
     constructor() {
@@ -27,21 +39,25 @@ class Hub {
         this.canvas.addEventListener('pointerup', (e) => this._onRawGesture(e));
 
         this.state = STATE_HUB;
-        this.tab = 'solo';
+        this.screen = FRONT;
+        // The master's screen runs in two numbered steps: join my wifi, then
+        // scan to play. Latecomers can be sent back to step one from step two.
+        this.masterStep = 'wifi';
         this.listScroll = 0;
         this._dragLastY = null;
-        // 'menu' | 'hosting' | 'joining' - the multiplay tab's sub-screen.
-        this.mpScreen = 'menu';
-        session.on('change', () => this._onSessionChange());
 
-        // Arriving with ?room=ABCD means this device just scanned the host's
-        // QR with its native camera, so skip the menu and join straight away.
+        session.on('change', () => this._onSessionChange());
+        hostPhone.detect();
+
+        // Arriving with ?room=ABCD means this device just scanned the master's
+        // QR with its native camera. It is a guest: no front page, no choice,
+        // straight into the room. That is the whole promise of the QR.
         const invited = roomFromUrl();
         if (invited) {
-            this.tab = 'multiplay';
-            this.mpScreen = 'joining';
+            this.screen = JOIN;
             session.join(invited, null);
         }
+
         this.activeMeta = null;
         this.activeGame = null;
         this.pendingMeta = null;
@@ -72,6 +88,20 @@ class Hub {
         if (this.state === STATE_HUB && p.x > CANVAS_WIDTH - 22 && p.y < 14) {
             audio.tick();
             this._toggleFullscreen();
+            return;
+        }
+        // Raising the access point belongs here for the same reason fullscreen
+        // does. Android will not let a background service start an activity,
+        // so a request made while the browser is in front stalls forever; a
+        // navigation out of a real tap is a foreground start, and is allowed.
+        if (this.state === STATE_HUB && this.screen === FRONT && this._frontHit(p) === 1
+            && hostPhone.present && !hostPhone.hosting) {
+            hostPhone.raiseHotspot();
+            return;
+        }
+        if (this.state === STATE_HUB && this.screen === MASTER && this.masterStep === 'wifi'
+            && hostPhone.error && p.y > CANVAS_HEIGHT - 40) {
+            hostPhone.raiseHotspot();
             return;
         }
         if (this.state === STATE_TILT_PROMPT) {
@@ -128,37 +158,77 @@ class Hub {
         else if (this.state === STATE_GAME) this._updateGame(dt);
     }
 
-    _listMaxScroll() {
-        const contentH = GAME_LIST.length * ROW_H;
-        const viewportH = CANVAS_HEIGHT - LIST_TOP;
-        return Math.max(0, contentH - viewportH);
+    // --- Front page -------------------------------------------------------
+
+    _panelY(i) {
+        return PANEL_TOP + i * (PANEL_H + PANEL_GAP);
+    }
+
+    _frontHit(p) {
+        if (p.x < 8 || p.x > CANVAS_WIDTH - 8) return -1;
+        for (let i = 0; i < 3; i++) {
+            const y = this._panelY(i);
+            if (p.y >= y && p.y < y + PANEL_H) return i;
+        }
+        return -1;
     }
 
     _updateHub() {
         // Drag-to-scroll runs every frame regardless of tap state, since a real
         // drag exceeds the tap-distance threshold and never sets input.tapped.
-        if (this.tab === 'solo') this._updateListScroll();
+        if (this.screen === SOLO) this._updateListScroll();
 
         const tap = input.tapped ? { x: input.tapX, y: input.tapY } : null;
         if (!tap) return;
 
-        // Fullscreen icon is handled in _onRawGesture; just swallow the tap here
-        // so it doesn't fall through to tab/list hit-testing below.
+        // Fullscreen icon is handled in _onRawGesture; just swallow the tap
+        // here so it doesn't fall through to the screens below.
         if (tap.x > CANVAS_WIDTH - 22 && tap.y < 14) {
             input.consumeTap();
             return;
         }
 
-        // Tab bar.
-        if (tap.y >= TAB_Y && tap.y < TAB_Y + TAB_H) {
-            input.consumeTap();
-            audio.tick();
-            this.tab = tap.x < CANVAS_WIDTH / 2 ? 'solo' : 'multiplay';
-            return;
-        }
+        if (this.screen === FRONT) this._updateFront(tap);
+        else if (this.screen === SOLO) this._updateSolo(tap);
+        else if (this.screen === MASTER) this._updateMaster(tap);
+        else if (this.screen === JOIN) this._updateJoin(tap);
+    }
 
-        if (this.tab === 'solo') this._updateSoloList(tap);
-        else this._updateMultiplay(tap);
+    _updateFront(tap) {
+        const hit = this._frontHit(tap);
+        if (hit < 0) return;
+        input.consumeTap();
+        audio.select();
+        if (hit === 0) {
+            this.screen = SOLO;
+        } else if (hit === 1) {
+            // The access point itself was already asked for in _onRawGesture,
+            // where a tap still counts as the foreground.
+            this.screen = MASTER;
+            this.masterStep = 'wifi';
+            hostPhone.watch();
+            if (relayAvailable() && !session.room) session.host(null);
+        } else {
+            this.screen = JOIN;
+        }
+    }
+
+    _backHit(tap) {
+        return tap.y >= BACK_Y && tap.y < BACK_Y + BACK_H && tap.x < 64;
+    }
+
+    _toFront() {
+        audio.tick();
+        hostPhone.unwatch();
+        this.screen = FRONT;
+    }
+
+    // --- Solo -------------------------------------------------------------
+
+    _listMaxScroll() {
+        const contentH = GAME_LIST.length * ROW_H;
+        const viewportH = CANVAS_HEIGHT - LIST_TOP;
+        return Math.max(0, contentH - viewportH);
     }
 
     _updateListScroll() {
@@ -172,8 +242,13 @@ class Hub {
         }
     }
 
-    _updateSoloList(tap) {
-        if (!this.rotateTipDismissed && tap.y >= STATUS_Y - 8 && tap.y < STATUS_Y + 6) {
+    _updateSolo(tap) {
+        if (this._backHit(tap)) {
+            input.consumeTap();
+            this._toFront();
+            return;
+        }
+        if (!this.rotateTipDismissed && tap.y >= BACK_Y && tap.y < BACK_Y + BACK_H) {
             input.consumeTap();
             this.rotateTipDismissed = true;
             setFlag('rotateTipDismissed', true);
@@ -194,7 +269,65 @@ class Hub {
         }
     }
 
-    // The host starting a game pulls every other device into it, so react to
+    // --- Master -----------------------------------------------------------
+
+    _updateMaster(tap) {
+        if (this._backHit(tap)) {
+            input.consumeTap();
+            session.leave();
+            hostPhone.dropHotspot();
+            this._toFront();
+            return;
+        }
+        if (!hostPhone.present || !relayAvailable()) return;
+
+        if (this.masterStep === 'wifi') {
+            // One button the width of the screen: everyone is on the wifi,
+            // move on. A failure puts TRY AGAIN in the same place, and that
+            // one is handled in _onRawGesture because it starts an activity.
+            if (hostPhone.hosting && !hostPhone.error && tap.y > CANVAS_HEIGHT - 40) {
+                input.consumeTap();
+                audio.select();
+                this.masterStep = 'room';
+            }
+            return;
+        }
+
+        // Step two. The WIFI chip brings step one back for a latecomer.
+        if (tap.y >= BACK_Y && tap.y < BACK_Y + BACK_H && tap.x > CANVAS_WIDTH - 64) {
+            input.consumeTap();
+            audio.tick();
+            this.masterStep = 'wifi';
+            return;
+        }
+
+        const games = multiplayerGames();
+        const top = this._gameListTop();
+        const i = Math.floor((tap.y - top) / 26);
+        if (i >= 0 && i < games.length && session.isHost) {
+            input.consumeTap();
+            audio.select();
+            const game = games[i];
+            session.startGame(game.id, game.modes?.[0] ?? 'custom');
+        }
+    }
+
+    _gameListTop() {
+        // Below the guest QR, its address, and however many players are in.
+        return 220 + Math.min(session.players.length, 4) * 12;
+    }
+
+    // --- Join -------------------------------------------------------------
+
+    _updateJoin(tap) {
+        if (this._backHit(tap)) {
+            input.consumeTap();
+            session.leave();
+            this._toFront();
+        }
+    }
+
+    // The master starting a game pulls every other device into it, so react to
     // the session rather than waiting for a tap.
     _onSessionChange() {
         if (session.phase === PLAYING && this.state === STATE_HUB && session.gameId) {
@@ -203,47 +336,6 @@ class Hub {
             // never show the tilt prompt here, just enter.
             if (meta) this._enterGame(meta);
         }
-    }
-
-    _updateMultiplay(tap) {
-        input.consumeTap();
-        if (!relayAvailable()) return;
-
-        if (this.mpScreen === 'menu') {
-            if (tap.y >= 60 && tap.y < 100) {
-                audio.select();
-                this.mpScreen = 'hosting';
-                session.host(null);
-            } else if (tap.y >= 110 && tap.y < 150) {
-                audio.select();
-                this.mpScreen = 'joining';
-            }
-            return;
-        }
-
-        // LEAVE, bottom of either sub-screen.
-        if (tap.y > CANVAS_HEIGHT - 34) {
-            audio.tick();
-            session.leave();
-            this.mpScreen = 'menu';
-            return;
-        }
-
-        if (this.mpScreen === 'hosting' && session.isHost) {
-            const games = multiplayerGames();
-            const top = this._gameListTop();
-            const i = Math.floor((tap.y - top) / 26);
-            if (i >= 0 && i < games.length) {
-                audio.select();
-                const game = games[i];
-                session.startGame(game.id, game.modes?.[0] ?? 'custom');
-            }
-        }
-    }
-
-    _gameListTop() {
-        // Below the room code, join URL and player list.
-        return 150 + Math.min(session.players.length, 5) * 12;
     }
 
     async _updateTiltPrompt() {
@@ -258,6 +350,7 @@ class Hub {
 
     _enterGame(meta) {
         particles.clear();
+        hostPhone.unwatch();
         this.activeMeta = meta;
         this._framesInGame = 0;
         // session is passed always, but a game only looks at it when started
@@ -282,6 +375,7 @@ class Hub {
                 audio.tick();
                 this.state = STATE_HUB;
                 this.activeGame = null;
+                if (this.screen === MASTER) hostPhone.watch();
                 return;
             }
             if (tap.x > CANVAS_WIDTH - HUD_HEIGHT) {
@@ -293,6 +387,8 @@ class Hub {
         this._framesInGame++;
         this.activeGame.update(dt);
     }
+
+    // --- Drawing ----------------------------------------------------------
 
     _render() {
         const r = this.renderer;
@@ -311,22 +407,55 @@ class Hub {
             r.drawText('FS ERROR: ' + this._fullscreenError, CANVAS_WIDTH / 2, 42, COLORS.danger, 'center', 1);
         }
 
-        const soloOn = this.tab === 'solo';
-        r.roundRect(4, TAB_Y, CANVAS_WIDTH / 2 - 6, TAB_H, 4, soloOn ? COLORS.accent : COLORS.lcdBg);
-        r.roundRect(CANVAS_WIDTH / 2 + 2, TAB_Y, CANVAS_WIDTH / 2 - 6, TAB_H, 4, !soloOn ? COLORS.accent2 : COLORS.lcdBg);
-        r.drawText('SOLO', CANVAS_WIDTH / 4, TAB_Y + 6, soloOn ? COLORS.bg : COLORS.white, 'center', 1);
-        r.drawText('MULTIPLAY', (CANVAS_WIDTH * 3) / 4, TAB_Y + 6, !soloOn ? COLORS.bg : COLORS.white, 'center', 1);
-
-        if (this.tab === 'solo') this._renderSoloList();
-        else this._renderMultiplay();
+        if (this.screen === FRONT) this._renderFront();
+        else if (this.screen === SOLO) this._renderSolo();
+        else if (this.screen === MASTER) this._renderMaster();
+        else if (this.screen === JOIN) this._renderJoin();
     }
 
-    _renderSoloList() {
+    // A panel in the same language as the game rows: dark slab, a stroke that
+    // breathes, big label, small line underneath saying what it is for.
+    _panel(i, label, hint, color, enabled = true) {
         const r = this.renderer;
-        if (!this.rotateTipDismissed) {
-            r.drawText('TIP: TURN OFF AUTO-ROTATE (TAP TO HIDE)', CANVAS_WIDTH / 2, STATUS_Y, COLORS.warn, 'center', 1);
+        const y = this._panelY(i);
+        const glow = enabled ? Math.sin(performance.now() / 500 + i * 1.6) * 0.5 + 0.5 : 0;
+        r.roundRect(8, y, CANVAS_WIDTH - 16, PANEL_H, 7, COLORS.lcdBg);
+        r.strokeRect(8, y, CANVAS_WIDTH - 16, PANEL_H, enabled ? color : COLORS.ink, 1 + glow);
+        r.drawText(label, CANVAS_WIDTH / 2, y + 12, enabled ? color : COLORS.ink, 'center', 2);
+        r.drawText(hint, CANVAS_WIDTH / 2, y + 36, enabled ? COLORS.accentDim : COLORS.ink, 'center', 1);
+    }
+
+    _renderFront() {
+        const r = this.renderer;
+        const canHost = relayAvailable() && hostPhone.present !== false;
+
+        this._panel(0, 'PLAY SOLO', GAME_LIST.length + ' GAMES ON THIS PHONE', COLORS.accent);
+        this._panel(1, 'BE MASTER', canHost ? 'RUN THE TABLE' : 'NEEDS THE HOST APP', COLORS.accent2, canHost);
+        this._panel(2, 'JOIN', 'SCAN THE MASTER CODE', COLORS.accent3);
+
+        const footer = this._panelY(2) + PANEL_H + 22;
+        if (canHost) {
+            r.drawText('NO INTERNET NEEDED.', CANVAS_WIDTH / 2, footer, COLORS.accentDim, 'center', 1);
+            r.drawText('GUESTS INSTALL NOTHING.', CANVAS_WIDTH / 2, footer + 12, COLORS.accentDim, 'center', 1);
         } else {
-            r.drawText('TAP A GAME TO PLAY', CANVAS_WIDTH / 2, STATUS_Y, COLORS.accentDim, 'center', 1);
+            r.drawText('ONE PHONE RUNS THE HOST APP', CANVAS_WIDTH / 2, footer, COLORS.warn, 'center', 1);
+            r.drawText('AND SHARES ITS OWN WIFI.', CANVAS_WIDTH / 2, footer + 12, COLORS.warn, 'center', 1);
+            r.drawText('EVERYONE ELSE JUST SCANS.', CANVAS_WIDTH / 2, footer + 28, COLORS.accentDim, 'center', 1);
+        }
+    }
+
+    _renderBack(label) {
+        const r = this.renderer;
+        r.roundRect(4, BACK_Y, 58, BACK_H, 5, COLORS.lcdBg);
+        r.strokeRect(4, BACK_Y, 58, BACK_H, COLORS.ink);
+        r.drawText(label || '< BACK', 33, BACK_Y + 6, COLORS.white, 'center', 1);
+    }
+
+    _renderSolo() {
+        const r = this.renderer;
+        this._renderBack();
+        if (!this.rotateTipDismissed) {
+            r.drawText('TURN OFF AUTO-ROTATE', CANVAS_WIDTH - 6, BACK_Y + 6, COLORS.warn, 'right', 1);
         }
 
         const ctx = r.ctx;
@@ -362,103 +491,155 @@ class Hub {
         }
     }
 
-    _renderMultiplay() {
-        if (!relayAvailable()) {
+    _renderMaster() {
+        this._renderBack('< STOP');
+
+        if (!relayAvailable() || hostPhone.present === false) {
             this._renderNeedsHostApp();
             return;
         }
-        if (this.mpScreen === 'menu') this._renderMultiplayMenu();
-        else this._renderLobby();
+        if (this.masterStep === 'wifi') this._renderWifiStep();
+        else this._renderRoomStep();
     }
 
-    // Shown on the public web build, where there is no host app serving and so
-    // no relay to talk to.
+    // Shown on the public web build, where nothing is serving these files off a
+    // phone and so there is no access point and no relay to talk to.
     _renderNeedsHostApp() {
         const r = this.renderer;
-        r.roundRect(16, 70, CANVAS_WIDTH - 32, 100, 6, COLORS.lcdBg);
-        r.strokeRect(16, 70, CANVAS_WIDTH - 32, 100, COLORS.warn);
+        r.roundRect(16, 70, CANVAS_WIDTH - 32, 108, 6, COLORS.lcdBg);
+        r.strokeRect(16, 70, CANVAS_WIDTH - 32, 108, COLORS.warn);
         r.drawText('NEEDS THE HOST APP', CANVAS_WIDTH / 2, 84, COLORS.warn, 'center', 1);
-        r.drawText('ONE PHONE RUNS THE APP', CANVAS_WIDTH / 2, 106, COLORS.white, 'center', 1);
-        r.drawText('AND SHARES ITS WIFI.', CANVAS_WIDTH / 2, 118, COLORS.white, 'center', 1);
-        r.drawText('EVERYONE ELSE JUST SCANS', CANVAS_WIDTH / 2, 136, COLORS.accentDim, 'center', 1);
-        r.drawText('THE QR - NO INSTALL.', CANVAS_WIDTH / 2, 148, COLORS.accentDim, 'center', 1);
-        r.drawText('WORKS WITH NO INTERNET', CANVAS_WIDTH / 2, 186, COLORS.accent3, 'center', 1);
+        r.drawText('ONE PHONE AT THE TABLE', CANVAS_WIDTH / 2, 106, COLORS.white, 'center', 1);
+        r.drawText('RUNS IT AND SHARES', CANVAS_WIDTH / 2, 118, COLORS.white, 'center', 1);
+        r.drawText('ITS OWN WIFI.', CANVAS_WIDTH / 2, 130, COLORS.white, 'center', 1);
+        r.drawText('NOBODY ELSE INSTALLS', CANVAS_WIDTH / 2, 152, COLORS.accentDim, 'center', 1);
+        r.drawText('ANYTHING AT ALL.', CANVAS_WIDTH / 2, 164, COLORS.accentDim, 'center', 1);
+        r.drawText('WORKS WITH NO INTERNET', CANVAS_WIDTH / 2, 196, COLORS.accent3, 'center', 1);
     }
 
-    _renderMultiplayMenu() {
+    _stepHeading(number, title, color) {
         const r = this.renderer;
-        r.roundRect(20, 60, CANVAS_WIDTH - 40, 40, 6, COLORS.lcdBg);
-        r.strokeRect(20, 60, CANVAS_WIDTH - 40, 40, COLORS.accent2);
-        r.drawText('BECOME MASTER', CANVAS_WIDTH / 2, 76, COLORS.accent2, 'center', 1);
-        r.drawText('HOST A LOCAL GAME', CANVAS_WIDTH / 2, 88, COLORS.accentDim, 'center', 1);
-
-        r.roundRect(20, 110, CANVAS_WIDTH - 40, 40, 6, COLORS.lcdBg);
-        r.strokeRect(20, 110, CANVAS_WIDTH - 40, 40, COLORS.accent3);
-        r.drawText('JOIN GAME', CANVAS_WIDTH / 2, 126, COLORS.accent3, 'center', 1);
-        r.drawText('SCAN A HOST QR CODE', CANVAS_WIDTH / 2, 138, COLORS.accentDim, 'center', 1);
-
-        const readyCount = multiplayerGames().length;
-        r.drawText(`${readyCount} OF ${GAME_LIST.length} GAMES`, CANVAS_WIDTH / 2, 175, COLORS.white, 'center', 1);
-        r.drawText('MULTIPLAYER-READY', CANVAS_WIDTH / 2, 187, COLORS.white, 'center', 1);
-        r.drawText('NOTHING TO INSTALL -', CANVAS_WIDTH / 2, 207, COLORS.accentDim, 'center', 1);
-        r.drawText('GUESTS JUST SCAN AND PLAY', CANVAS_WIDTH / 2, 219, COLORS.accentDim, 'center', 1);
+        r.drawText('STEP ' + number, CANVAS_WIDTH / 2, 44, COLORS.accentDim, 'center', 1);
+        r.drawText(title, CANVAS_WIDTH / 2, 56, color, 'center', 2);
     }
 
-    _renderLobby() {
+    _bigButton(label, color) {
         const r = this.renderer;
-        const hosting = this.mpScreen === 'hosting';
+        const y = CANVAS_HEIGHT - 36;
+        const glow = Math.sin(performance.now() / 400) * 0.5 + 0.5;
+        r.roundRect(16, y, CANVAS_WIDTH - 32, 26, 6, COLORS.lcdBg);
+        r.strokeRect(16, y, CANVAS_WIDTH - 32, 26, color, 1 + glow);
+        r.drawText(label, CANVAS_WIDTH / 2, y + 9, color, 'center', 1);
+    }
 
-        r.drawText(hosting ? 'HOSTING' : 'JOINING', CANVAS_WIDTH / 2, 48, hosting ? COLORS.accent2 : COLORS.accent3, 'center', 1);
+    _renderWifiStep() {
+        const r = this.renderer;
+        this._stepHeading(1, 'JOIN MY WIFI', COLORS.accent2);
 
-        if (!session.connected) {
-            r.drawText(session.error ? 'CONNECTION FAILED' : 'CONNECTING...', CANVAS_WIDTH / 2, 70, session.error ? COLORS.danger : COLORS.warn, 'center', 1);
-            if (!hosting && !session.room) {
-                r.drawText('SCAN THE HOST\'S QR CODE', CANVAS_WIDTH / 2, 92, COLORS.white, 'center', 1);
-                r.drawText('WITH YOUR CAMERA APP', CANVAS_WIDTH / 2, 104, COLORS.white, 'center', 1);
-            }
-        } else {
-            r.drawText('ROOM', CANVAS_WIDTH / 2, 66, COLORS.accentDim, 'center', 1);
-            r.drawText(session.room, CANVAS_WIDTH / 2, 78, COLORS.warn, 'center', 2);
-
-            if (hosting) {
-                r.drawText('JOIN MY WIFI, THEN SCAN', CANVAS_WIDTH / 2, 98, COLORS.accentDim, 'center', 1);
-                this._renderJoinQr(110);
-                // Shown under the QR so it can be read out if a camera plays up.
-                r.drawText(session.joinUrl().replace(/^https?:\/\//, ''), CANVAS_WIDTH / 2, 224, COLORS.accent2, 'center', 1);
-            }
-
-            const py = hosting ? 240 : 104;
-            r.drawText(`PLAYERS (${session.players.length})`, CANVAS_WIDTH / 2, py, COLORS.accentDim, 'center', 1);
-            session.players.slice(0, 5).forEach((p, i) => {
-                const mine = session.me && p.id === session.me.id;
-                const label = `${p.name}${p.host ? ' *' : ''}${mine ? ' (YOU)' : ''}`;
-                r.drawText(label, CANVAS_WIDTH / 2, py + 14 + i * 12, mine ? COLORS.white : COLORS.accentDim, 'center', 1);
-            });
-
-            if (hosting) this._renderHostGameList();
-            else r.drawText('WAITING FOR HOST...', CANVAS_WIDTH / 2, py + 90, COLORS.warn, 'center', 1);
+        if (hostPhone.error) {
+            r.drawText('THE WIFI DID NOT OPEN', CANVAS_WIDTH / 2, 96, COLORS.danger, 'center', 1);
+            r.drawText(String(hostPhone.error).toUpperCase().slice(0, 28), CANVAS_WIDTH / 2, 112, COLORS.white, 'center', 1);
+            this._bigButton('TRY AGAIN', COLORS.warn);
+            return;
+        }
+        if (!hostPhone.hosting) {
+            const dots = '.'.repeat(1 + Math.floor(performance.now() / 400) % 3);
+            r.drawText('OPENING THE WIFI' + dots, CANVAS_WIDTH / 2, 104, COLORS.warn, 'center', 1);
+            r.drawText('THIS PHONE STOPS USING', CANVAS_WIDTH / 2, 136, COLORS.accentDim, 'center', 1);
+            r.drawText('ANY OTHER WIFI WHILE IT', CANVAS_WIDTH / 2, 148, COLORS.accentDim, 'center', 1);
+            r.drawText('IS RUNNING THE TABLE.', CANVAS_WIDTH / 2, 160, COLORS.accentDim, 'center', 1);
+            return;
         }
 
-        r.roundRect(60, CANVAS_HEIGHT - 30, CANVAS_WIDTH - 120, 22, 5, COLORS.lcdBg);
-        r.strokeRect(60, CANVAS_HEIGHT - 30, CANVAS_WIDTH - 120, 22, COLORS.danger);
-        r.drawText('LEAVE', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 24, COLORS.danger, 'center', 1);
+        r.drawText('POINT A CAMERA AT THIS', CANVAS_WIDTH / 2, 78, COLORS.accentDim, 'center', 1);
+        this._renderQr(hostPhone.wifiQrPayload(), 92);
+        // Android picks the name and the password itself and changes them every
+        // session, so these are never read out - they are here only for a
+        // camera that will not play and a guest willing to type.
+        r.drawText(hostPhone.hotspot.ssid || '', CANVAS_WIDTH / 2, 204, COLORS.accent2, 'center', 1);
+        r.drawText(hostPhone.hotspot.password || '', CANVAS_WIDTH / 2, 218, COLORS.warn, 'center', 1);
+        this._bigButton('EVERYONE ON? NEXT >', COLORS.accent3);
+    }
+
+    _renderRoomStep() {
+        const r = this.renderer;
+        this._stepHeading(2, 'SCAN TO PLAY', COLORS.accent3);
+        r.roundRect(CANVAS_WIDTH - 62, BACK_Y, 58, BACK_H, 5, COLORS.lcdBg);
+        r.strokeRect(CANVAS_WIDTH - 62, BACK_Y, 58, BACK_H, COLORS.ink);
+        r.drawText('WIFI >', CANVAS_WIDTH - 33, BACK_Y + 6, COLORS.accent2, 'center', 1);
+
+        if (!session.connected) {
+            r.drawText(session.error ? 'RELAY UNREACHABLE' : 'STARTING THE ROOM...', CANVAS_WIDTH / 2, 110,
+                session.error ? COLORS.danger : COLORS.warn, 'center', 1);
+            return;
+        }
+
+        this._renderQr(session.joinUrl(), 74);
+        // Under the QR so it can be read out if somebody's camera plays up.
+        r.drawText(session.joinUrl().replace(/^https?:\/\//, ''), CANVAS_WIDTH / 2, 186, COLORS.accent2, 'center', 1);
+
+        r.drawText('PLAYERS (' + session.players.length + ')', CANVAS_WIDTH / 2, 202, COLORS.accentDim, 'center', 1);
+        session.players.slice(0, 4).forEach((p, i) => {
+            const mine = session.me && p.id === session.me.id;
+            const label = p.name + (p.host ? ' *' : '') + (mine ? ' (YOU)' : '');
+            const colour = p.present === false ? COLORS.ink : mine ? COLORS.white : COLORS.accentDim;
+            r.drawText(label, CANVAS_WIDTH / 2, 216 + i * 12, colour, 'center', 1);
+        });
+
+        this._renderHostGameList();
+    }
+
+    _renderJoin() {
+        const r = this.renderer;
+        this._renderBack();
+
+        if (!session.room) {
+            r.drawText('JOIN A TABLE', CANVAS_WIDTH / 2, 56, COLORS.accent3, 'center', 2);
+            r.roundRect(16, 88, CANVAS_WIDTH - 32, 104, 6, COLORS.lcdBg);
+            r.strokeRect(16, 88, CANVAS_WIDTH - 32, 104, COLORS.accent3);
+            r.drawText('OPEN YOUR CAMERA AND', CANVAS_WIDTH / 2, 104, COLORS.white, 'center', 1);
+            r.drawText('POINT IT AT THE MASTER', CANVAS_WIDTH / 2, 116, COLORS.white, 'center', 1);
+            r.drawText('PHONE - TWICE.', CANVAS_WIDTH / 2, 128, COLORS.white, 'center', 1);
+            r.drawText('ONCE FOR THE WIFI,', CANVAS_WIDTH / 2, 150, COLORS.accentDim, 'center', 1);
+            r.drawText('ONCE FOR THE GAME.', CANVAS_WIDTH / 2, 162, COLORS.accentDim, 'center', 1);
+            r.drawText('NOTHING TO INSTALL', CANVAS_WIDTH / 2, 178, COLORS.accent3, 'center', 1);
+            return;
+        }
+
+        r.drawText('ROOM', CANVAS_WIDTH / 2, 48, COLORS.accentDim, 'center', 1);
+        r.drawText(session.room, CANVAS_WIDTH / 2, 60, COLORS.warn, 'center', 2);
+        if (!session.connected) {
+            r.drawText(session.error ? 'CONNECTION FAILED' : 'CONNECTING...', CANVAS_WIDTH / 2, 96,
+                session.error ? COLORS.danger : COLORS.warn, 'center', 1);
+            return;
+        }
+
+        r.drawText('PLAYERS (' + session.players.length + ')', CANVAS_WIDTH / 2, 96, COLORS.accentDim, 'center', 1);
+        session.players.slice(0, 6).forEach((p, i) => {
+            const mine = session.me && p.id === session.me.id;
+            const label = p.name + (p.host ? ' *' : '') + (mine ? ' (YOU)' : '');
+            const colour = p.present === false ? COLORS.ink : mine ? COLORS.white : COLORS.accentDim;
+            r.drawText(label, CANVAS_WIDTH / 2, 112 + i * 12, colour, 'center', 1);
+        });
+        r.drawText('WAITING FOR THE MASTER', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 40, COLORS.warn, 'center', 1);
+        r.drawText('TO PICK A GAME', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 52, COLORS.warn, 'center', 1);
     }
 
     // A phone screen is emissive, so a QR on it scans easily even in a dim pub -
     // but it still needs true white behind it and a quiet zone, or the dark
     // theme bleeds into the finder patterns and readers give up.
-    _renderJoinQr(top) {
+    _renderQr(payload, top) {
         const r = this.renderer;
-        const url = session.joinUrl();
-        if (this._qrUrl !== url) {
+        if (!payload) return;
+        if (this._qrPayload !== payload) {
             try {
-                this._qr = qrMatrix(url);
+                this._qr = qrMatrix(payload);
                 this._qrError = null;
             } catch (err) {
                 this._qr = null;
                 this._qrError = (err && err.message) || String(err);
             }
-            this._qrUrl = url;
+            this._qrPayload = payload;
         }
         if (!this._qr) {
             r.drawText(this._qrError || 'QR UNAVAILABLE', CANVAS_WIDTH / 2, top + 40, COLORS.danger, 'center', 1);
@@ -488,16 +669,17 @@ class Hub {
         const top = this._gameListTop();
 
         if (games.length === 0) {
-            r.drawText('NO MULTIPLAYER GAMES', CANVAS_WIDTH / 2, top, COLORS.warn, 'center', 1);
-            r.drawText('CONVERTED YET', CANVAS_WIDTH / 2, top + 12, COLORS.warn, 'center', 1);
+            r.drawText('NO MULTIPLAYER GAMES YET', CANVAS_WIDTH / 2, top, COLORS.warn, 'center', 1);
             return;
         }
 
         r.drawText('TAP A GAME TO START', CANVAS_WIDTH / 2, top - 14, COLORS.accentDim, 'center', 1);
         games.forEach((g, i) => {
             const y = top + i * 26;
+            if (y + 22 > CANVAS_HEIGHT) return;
+            const glow = Math.sin(performance.now() / 500 + i) * 0.5 + 0.5;
             r.roundRect(16, y, CANVAS_WIDTH - 32, 22, 4, COLORS.lcdBg);
-            r.strokeRect(16, y, CANVAS_WIDTH - 32, 22, COLORS.accent);
+            r.strokeRect(16, y, CANVAS_WIDTH - 32, 22, COLORS.accent, 1 + glow);
             r.drawText(g.title, CANVAS_WIDTH / 2, y + 6, COLORS.white, 'center', 1);
         });
     }
@@ -515,7 +697,7 @@ class Hub {
         r.drawText('DRAG-TO-STEER INSTEAD', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 48, COLORS.accentDim, 'center', 1);
 
         const secure = input.secureContext ? 'YES' : 'NO - TILT WILL FAIL';
-        r.drawText(`SECURE PAGE: ${secure}`, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 20, input.secureContext ? COLORS.accent3 : COLORS.danger, 'center', 1);
+        r.drawText('SECURE PAGE: ' + secure, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 20, input.secureContext ? COLORS.accent3 : COLORS.danger, 'center', 1);
     }
 
     _renderGame() {
@@ -534,7 +716,7 @@ class Hub {
                 r.drawText('TILT BLOCKED - CHECK SITE PERMS', 2, CANVAS_HEIGHT - 8, COLORS.danger, 'left', 1);
             } else {
                 const t = input.getTilt();
-                r.drawText(`T ${t.x.toFixed(2)},${t.y.toFixed(2)}`, 2, CANVAS_HEIGHT - 8, COLORS.accentDim, 'left', 1);
+                r.drawText('T ' + t.x.toFixed(2) + ',' + t.y.toFixed(2), 2, CANVAS_HEIGHT - 8, COLORS.accentDim, 'left', 1);
             }
         }
     }

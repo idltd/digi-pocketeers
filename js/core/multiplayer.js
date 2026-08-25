@@ -9,6 +9,7 @@
 
 import { GAME_LIST } from './constants.js';
 import { net } from './net.js';
+import { hostPhone } from './hostphone.js';
 
 // The four modes from the README. A game declares which it supports; the host
 // picks one when starting.
@@ -108,10 +109,16 @@ export class Session {
         this._emit('change', this);
     }
 
-    // The URL a guest's camera should land on. Uses the address they actually
-    // reached the host at, so it is right whatever IP the hotspot handed out.
+    // The URL a guest's camera should land on. It cannot be built from
+    // location.origin: the master's own browser reached the app on loopback,
+    // an address that means nothing to anybody else at the table. The phone
+    // reports the access point address it is actually reachable at, and a
+    // guest's own page is told, per request, the address that guest used.
     joinUrl() {
-        return `${location.origin}${location.pathname}?room=${this.room}`;
+        const origin = hostPhone.guestOrigin()
+            || window.POCKETEERS_PUBLIC_ORIGIN
+            || location.origin;
+        return `${origin}${location.pathname}?room=${this.room}`;
     }
 
     _onStatus() {
