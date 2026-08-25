@@ -35,7 +35,7 @@ class HostingService : Service(), HostControl {
         private const val CHANNEL = "hosting"
         private const val NOTIFICATION = 42
         private const val LOOPBACK = "127.0.0.1"
-        private const val SOCKET_READ_TIMEOUT = 5_000
+        private const val SOCKET_READ_TIMEOUT = 0
     }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var reservation: WifiManager.LocalOnlyHotspotReservation? = null

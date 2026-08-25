@@ -12,7 +12,7 @@
 // unregisters itself. Whichever build installed it, it dies as soon as it
 // wakes.
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const CACHE_NAME = `pocketeers-${VERSION}`;
 
 const ASSETS = [
@@ -20,6 +20,7 @@ const ASSETS = [
     './index.html',
     './manifest.json',
     './css/style.css',
+    './css/fonts/fredoka-600-latin.woff2',
     './js/core/constants.js',
     './js/core/storage.js',
     './js/core/audio.js',
