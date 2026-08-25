@@ -14,11 +14,17 @@ import { qrMatrix } from './qr.js';
 
 // One front page, drawn in the game's own language. Nothing outside this
 // canvas ever asks the player to choose anything - not the APK, which is a
-// doorway with no controls on it, and not a menu behind a menu. Three panels,
+// doorway with no controls on it, and not a menu behind a menu. Two panels,
 // one tap, and you are in.
+//
+// There is deliberately no JOIN. A guest never taps their way in: they scan
+// the master's code and arrive already in the room. A button here could only
+// ever have explained that, and an in-page scanner cannot exist anyway - a
+// camera needs a secure context, which the master's plain http is not.
 const FRONT = 'front';
 const SOLO = 'solo';
 const MASTER = 'master';
+// Not on the front page - only ever reached by scanning the master's code.
 const JOIN = 'join';
 
 const BACK_Y = 18;
@@ -29,7 +35,7 @@ const ROW_H = 44;
 // Front panels: full width, tall enough to hit with a thumb across a table.
 const PANEL_H = 52;
 const PANEL_GAP = 12;
-const PANEL_FOOTER = 40;
+const PANEL_FOOTER = 82;
 const TITLE_BOTTOM = 34;
 
 class Hub {
@@ -166,7 +172,7 @@ class Hub {
     // hugging the top of a tall one leaves the bottom third looking like the
     // page failed to finish loading.
     _panelTop() {
-        const block = 3 * PANEL_H + 2 * PANEL_GAP + PANEL_FOOTER;
+        const block = 2 * PANEL_H + PANEL_GAP + PANEL_FOOTER;
         return Math.max(TITLE_BOTTOM + 12, TITLE_BOTTOM + (CANVAS_HEIGHT - TITLE_BOTTOM - block) / 2);
     }
 
@@ -176,7 +182,7 @@ class Hub {
 
     _frontHit(p) {
         if (p.x < 8 || p.x > CANVAS_WIDTH - 8) return -1;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 2; i++) {
             const y = this._panelY(i);
             if (p.y >= y && p.y < y + PANEL_H) return i;
         }
@@ -211,16 +217,14 @@ class Hub {
         audio.select();
         if (hit === 0) {
             this.screen = SOLO;
-        } else if (hit === 1) {
-            // The access point itself was already asked for in _onRawGesture,
-            // where a tap still counts as the foreground.
-            this.screen = MASTER;
-            this.masterStep = 'wifi';
-            hostPhone.watch();
-            if (relayAvailable() && !session.room) session.host(null);
-        } else {
-            this.screen = JOIN;
+            return;
         }
+        // The access point itself was already asked for in _onRawGesture,
+        // where a tap still counts as the foreground.
+        this.screen = MASTER;
+        this.masterStep = 'wifi';
+        hostPhone.watch();
+        if (relayAvailable() && !session.room) session.host(null);
     }
 
     _backHit(tap) {
@@ -441,16 +445,20 @@ class Hub {
 
         this._panel(0, 'PLAY SOLO', GAME_LIST.length + ' GAMES ON THIS PHONE', COLORS.accent);
         this._panel(1, 'BE MASTER', canHost ? 'RUN THE TABLE' : 'NEEDS THE HOST APP', COLORS.accent2, canHost);
-        this._panel(2, 'JOIN', 'SCAN THE MASTER CODE', COLORS.accent3);
 
-        const footer = this._panelY(2) + PANEL_H + 22;
+        // Joining is not a button, so say where it does happen. Somebody
+        // holding this phone is either playing alone or running the table;
+        // everybody else is at the far end of a camera.
+        const footer = this._panelY(1) + PANEL_H + 24;
+        r.drawText('JOINING SOMEONE ELSE?', CANVAS_WIDTH / 2, footer, COLORS.accent3, 'center', 1);
+        r.drawText('JUST SCAN THEIR CODE', CANVAS_WIDTH / 2, footer + 12, COLORS.accent3, 'center', 1);
+        r.drawText('WITH YOUR CAMERA.', CANVAS_WIDTH / 2, footer + 24, COLORS.accent3, 'center', 1);
         if (canHost) {
-            r.drawText('NO INTERNET NEEDED.', CANVAS_WIDTH / 2, footer, COLORS.accentDim, 'center', 1);
-            r.drawText('GUESTS INSTALL NOTHING.', CANVAS_WIDTH / 2, footer + 12, COLORS.accentDim, 'center', 1);
+            r.drawText('NO INTERNET NEEDED.', CANVAS_WIDTH / 2, footer + 44, COLORS.accentDim, 'center', 1);
+            r.drawText('GUESTS INSTALL NOTHING.', CANVAS_WIDTH / 2, footer + 56, COLORS.accentDim, 'center', 1);
         } else {
-            r.drawText('ONE PHONE RUNS THE HOST APP', CANVAS_WIDTH / 2, footer, COLORS.warn, 'center', 1);
-            r.drawText('AND SHARES ITS OWN WIFI.', CANVAS_WIDTH / 2, footer + 12, COLORS.warn, 'center', 1);
-            r.drawText('EVERYONE ELSE JUST SCANS.', CANVAS_WIDTH / 2, footer + 28, COLORS.accentDim, 'center', 1);
+            r.drawText('TO RUN A TABLE YOURSELF,', CANVAS_WIDTH / 2, footer + 44, COLORS.warn, 'center', 1);
+            r.drawText('ONE PHONE NEEDS THE APP.', CANVAS_WIDTH / 2, footer + 56, COLORS.warn, 'center', 1);
         }
     }
 
@@ -603,19 +611,7 @@ class Hub {
         const r = this.renderer;
         this._renderBack();
 
-        if (!session.room) {
-            r.drawText('JOIN A TABLE', CANVAS_WIDTH / 2, 56, COLORS.accent3, 'center', 2);
-            r.roundRect(16, 88, CANVAS_WIDTH - 32, 104, 6, COLORS.lcdBg);
-            r.strokeRect(16, 88, CANVAS_WIDTH - 32, 104, COLORS.accent3);
-            r.drawText('OPEN YOUR CAMERA AND', CANVAS_WIDTH / 2, 104, COLORS.white, 'center', 1);
-            r.drawText('POINT IT AT THE MASTER', CANVAS_WIDTH / 2, 116, COLORS.white, 'center', 1);
-            r.drawText('PHONE - TWICE.', CANVAS_WIDTH / 2, 128, COLORS.white, 'center', 1);
-            r.drawText('ONCE FOR THE WIFI,', CANVAS_WIDTH / 2, 150, COLORS.accentDim, 'center', 1);
-            r.drawText('ONCE FOR THE GAME.', CANVAS_WIDTH / 2, 162, COLORS.accentDim, 'center', 1);
-            r.drawText('NOTHING TO INSTALL', CANVAS_WIDTH / 2, 178, COLORS.accent3, 'center', 1);
-            return;
-        }
-
+        // Only ever reached with a room already in hand, from a scanned code.
         r.drawText('ROOM', CANVAS_WIDTH / 2, 48, COLORS.accentDim, 'center', 1);
         r.drawText(session.room, CANVAS_WIDTH / 2, 60, COLORS.warn, 'center', 2);
         if (!session.connected) {
