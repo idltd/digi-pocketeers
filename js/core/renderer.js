@@ -5,17 +5,40 @@ const FONT_FAMILY = '"Fredoka", system-ui, -apple-system, sans-serif';
 export class Renderer {
     constructor(canvas) {
         this.canvas = canvas;
-        // Render at native device resolution (capped) rather than the fixed
-        // 240x320 logical size, so smooth fonts/curves stay crisp instead of
-        // being nearest-neighbor upscaled. All drawing calls still use the
-        // 240x320 logical coordinate space via ctx.scale.
-        this.dpr = Math.min(window.devicePixelRatio || 1, 3);
-        canvas.width = CANVAS_WIDTH * this.dpr;
-        canvas.height = CANVAS_HEIGHT * this.dpr;
         this.ctx = canvas.getContext('2d');
-        this.ctx.imageSmoothingEnabled = true;
         this._shakeMag = 0;
         this._shakeFrames = 0;
+        this._resize();
+        // Fullscreen, rotation and the browser chrome sliding away all change
+        // the displayed size, and a buffer sized for the old one is upscaled
+        // to the new.
+        window.addEventListener('resize', () => this._resize());
+    }
+
+    // Size the drawing buffer to the pixels this canvas actually occupies.
+    //
+    // The old code used devicePixelRatio alone, which is only right when a
+    // canvas is displayed at its own logical size. This one is stretched to
+    // the whole screen by CSS, so a 240-wide buffer was being blown up by the
+    // browser - with smoothing - to a thousand pixels or more. Fonts and
+    // curves survive that; a QR code does not. Sharp black-and-white module
+    // edges become grey mush and a camera that would have read it in an
+    // instant just sits there.
+    //
+    // All drawing still happens in the 240-wide logical space via the
+    // transform set in clear().
+    _resize() {
+        const rect = this.canvas.getBoundingClientRect();
+        const cssWidth = rect.width || CANVAS_WIDTH;
+        const wanted = (window.devicePixelRatio || 1) * (cssWidth / CANVAS_WIDTH);
+        // Capped so an unusual display cannot ask for a buffer big enough to
+        // cost frames; beyond this, smoothing is no longer what limits it.
+        const dpr = Math.max(1, Math.min(wanted, 6));
+        if (this.dpr === dpr) return;
+        this.dpr = dpr;
+        this.canvas.width = Math.round(CANVAS_WIDTH * dpr);
+        this.canvas.height = Math.round(CANVAS_HEIGHT * dpr);
+        this.ctx.imageSmoothingEnabled = true;
     }
 
     clear(color = COLORS.bg) {
