@@ -344,12 +344,7 @@ class Hub {
 
     // --- Join -------------------------------------------------------------
 
-    _updateJoin(tap) {
-        if (this._backHit(tap)) {
-            input.consumeTap();
-            session.leave();
-            this._toFront();
-        }
+    _updateJoin(_tap) {
     }
 
     // The master starting a game pulls every other device into it, so react to
@@ -654,7 +649,6 @@ class Hub {
 
     _renderJoin() {
         const r = this.renderer;
-        this._renderBack();
 
         // Only ever reached with a room already in hand, from a scanned code.
         r.drawText('ROOM', CANVAS_WIDTH / 2, 48, COLORS.accentDim, 'center', 1);
