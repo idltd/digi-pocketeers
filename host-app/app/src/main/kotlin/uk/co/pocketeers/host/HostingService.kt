@@ -22,6 +22,12 @@ import java.net.URL
 // is hosting. Both are asked for by the web hub through HostControl; this class
 // is the only thing that touches Android.
 class HostingService : Service(), HostControl {
+    // How long to keep asking whether the server can be reached on the new
+    // hotspot address before giving up on it: eight tries, half a second
+    // apart, so roughly four seconds.
+    private val VERIFY_ATTEMPTS = 8
+    private val VERIFY_GAP_MS = 500L
+
     companion object {
         const val ACTION_START = "uk.co.pocketeers.host.START"
         const val ACTION_START_HOTSPOT = "uk.co.pocketeers.host.START_HOTSPOT"
@@ -153,6 +159,7 @@ class HostingService : Service(), HostControl {
 
     @Suppress("DEPRECATION")
     private suspend fun completeHotspot(value: WifiManager.LocalOnlyHotspotReservation) {
+        // (see verifyRepeatedly)
         updateHotspot(HotspotState.Starting("Finding the hotspot address…"))
         val (ssid, password) = if (Build.VERSION.SDK_INT >= 30) credentials(value)
             else Pair(value.wifiConfiguration?.SSID?.trim('"') ?: "Pocketeers", value.wifiConfiguration?.preSharedKey?.trim('"') ?: "")
@@ -160,7 +167,11 @@ class HostingService : Service(), HostControl {
         repeat(20) { if (address == null) { address = hotspotAddress(); if (address == null) delay(500) } }
         val found = address ?: return failHotspot("The hotspot started, but no reachable address appeared.")
         val guestUrl = "http://$found:$port/"
-        if (!verify(guestUrl)) return failHotspot("The server could not be reached at the hotspot address.")
+        // An address appearing on the interface is not the same as being
+        // routable through it. Asked once, immediately, this fails often
+        // enough to look random - and a failure here tears the whole hotspot
+        // down, so a moment of patience is worth more than a fast answer.
+        if (!verifyRepeatedly(guestUrl)) return failHotspot("The server could not be reached at the hotspot address.")
         hotspotBusy = false
         updateHotspot(HotspotState.On(ssid, password, guestUrl))
         updateNotification("Hosting • $ssid • $guestUrl")
@@ -197,6 +208,13 @@ class HostingService : Service(), HostControl {
     } catch (_: Exception) { emptyList() }
     private fun hotspotAddress(): String? = wifiIpv4Addresses().firstOrNull { it !in addressesBeforeHotspot }
     private fun verify(url: String) = try { (URL(url).openConnection() as HttpURLConnection).run { connectTimeout = 1500; readTimeout = 1500; responseCode == 200 } } catch (_: Exception) { false }
+    private suspend fun verifyRepeatedly(url: String): Boolean {
+        repeat(VERIFY_ATTEMPTS) { attempt ->
+            if (verify(url)) return true
+            if (attempt < VERIFY_ATTEMPTS - 1) delay(VERIFY_GAP_MS)
+        }
+        return false
+    }
 
     private fun fail(message: String) { HostingStateStore.state.value = HostingState.Failed(message); stopResources(); stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }
     private fun stopEverything() { if (stopping) return; stopping = true; stopResources(); HostingStateStore.state.value = HostingState.Stopped; stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }

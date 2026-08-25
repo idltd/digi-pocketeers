@@ -546,6 +546,27 @@ class Hub {
         r.drawText('WORKS WITH NO INTERNET', CANVAS_WIDTH / 2, 196, COLORS.accent3, 'center', 1);
     }
 
+    // Lay a sentence out across as many lines as it needs, breaking on spaces.
+    _wrapped(text, top, colour, width = CANVAS_WIDTH - 24, lineHeight = 13) {
+        const r = this.renderer;
+        const lines = [];
+        let line = '';
+        for (const word of text.split(/\s+/)) {
+            const candidate = line ? line + ' ' + word : word;
+            if (line && r.textWidth(candidate, 1) > width) {
+                lines.push(line);
+                line = word;
+            } else {
+                line = candidate;
+            }
+        }
+        if (line) lines.push(line);
+        lines.forEach((each, i) => {
+            r.drawText(each, CANVAS_WIDTH / 2, top + i * lineHeight, colour, 'center', 1);
+        });
+        return top + lines.length * lineHeight;
+    }
+
     _stepHeading(number, title, color) {
         const r = this.renderer;
         r.drawText('STEP ' + number, CANVAS_WIDTH / 2, 44, COLORS.accentDim, 'center', 1);
@@ -567,7 +588,10 @@ class Hub {
 
         if (hostPhone.error) {
             r.drawText('THE WIFI DID NOT OPEN', CANVAS_WIDTH / 2, 96, COLORS.danger, 'center', 1);
-            r.drawText(String(hostPhone.error).toUpperCase().slice(0, 28), CANVAS_WIDTH / 2, 112, COLORS.white, 'center', 1);
+            // Wrapped, not cut. A message chopped mid-word - "could not be
+            // reac" - tells somebody standing in a pub nothing at all, and
+            // reads as a second bug on top of the first.
+            this._wrapped(String(hostPhone.error).toUpperCase(), 114, COLORS.white);
             this._bigButton('TRY AGAIN', COLORS.warn);
             return;
         }
