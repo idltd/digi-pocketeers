@@ -36,6 +36,8 @@ const ROW_H = 44;
 const PANEL_H = 52;
 const PANEL_GAP = 12;
 const PANEL_FOOTER = 82;
+// Where the guest code starts on the second step of hosting.
+const ROOM_QR_TOP = 70;
 const TITLE_BOTTOM = 34;
 
 class Hub {
@@ -326,9 +328,18 @@ class Hub {
         }
     }
 
+    // The guest code takes whatever is left once the address, the sign-up list
+    // and the startable games have their room - so those keep their places on
+    // any screen and the code grows into the rest.
+    _roomQrSize() {
+        const games = multiplayerGames().length;
+        const below = 36 + Math.min(session.players.length, 4) * 12 + 14 + games * 26 + 6;
+        return this._qrSize(ROOM_QR_TOP, below);
+    }
+
     _gameListTop() {
-        // Below the guest QR, its address, and however many players are in.
-        return 220 + Math.min(session.players.length, 4) * 12;
+        const players = Math.min(session.players.length, 4);
+        return ROOM_QR_TOP + this._roomQrSize() + 36 + players * 12 + 14;
     }
 
     // --- Join -------------------------------------------------------------
@@ -569,13 +580,15 @@ class Hub {
             return;
         }
 
-        r.drawText('POINT A CAMERA AT THIS', CANVAS_WIDTH / 2, 78, COLORS.accentDim, 'center', 1);
-        this._renderQr(hostPhone.wifiQrPayload(), 92);
+        r.drawText('POINT A CAMERA AT THIS', CANVAS_WIDTH / 2, 74, COLORS.accentDim, 'center', 1);
+        const wifiTop = 86;
+        const wifiBottom = this._renderQr(hostPhone.wifiQrPayload(), wifiTop, this._qrSize(wifiTop, 76));
         // Android picks the name and the password itself and changes them every
         // session, so these are never read out - they are here only for a
         // camera that will not play and a guest willing to type.
-        r.drawText(hostPhone.hotspot.ssid || '', CANVAS_WIDTH / 2, 204, COLORS.accent2, 'center', 1);
-        r.drawText(hostPhone.hotspot.password || '', CANVAS_WIDTH / 2, 218, COLORS.warn, 'center', 1);
+        r.drawText('OR TYPE IT', CANVAS_WIDTH / 2, wifiBottom + 8, COLORS.ink, 'center', 1);
+        r.drawText(hostPhone.hotspot.ssid || '', CANVAS_WIDTH / 2, wifiBottom + 20, COLORS.accent2, 'center', 1);
+        r.drawText(hostPhone.hotspot.password || '', CANVAS_WIDTH / 2, wifiBottom + 32, COLORS.warn, 'center', 1);
         this._bigButton('EVERYONE ON? NEXT >', COLORS.accent3);
     }
 
@@ -592,16 +605,16 @@ class Hub {
             return;
         }
 
-        this._renderQr(session.joinUrl(), 74);
+        const roomBottom = this._renderQr(session.joinUrl(), ROOM_QR_TOP, this._roomQrSize());
         // Under the QR so it can be read out if somebody's camera plays up.
-        r.drawText(session.joinUrl().replace(/^https?:\/\//, ''), CANVAS_WIDTH / 2, 186, COLORS.accent2, 'center', 1);
+        r.drawText(session.joinUrl().replace(/^https?:\/\//, ''), CANVAS_WIDTH / 2, roomBottom + 6, COLORS.accent2, 'center', 1);
 
-        r.drawText('PLAYERS (' + session.players.length + ')', CANVAS_WIDTH / 2, 202, COLORS.accentDim, 'center', 1);
+        r.drawText('PLAYERS (' + session.players.length + ')', CANVAS_WIDTH / 2, roomBottom + 22, COLORS.accentDim, 'center', 1);
         session.players.slice(0, 4).forEach((p, i) => {
             const mine = session.me && p.id === session.me.id;
             const label = p.name + (p.host ? ' *' : '') + (mine ? ' (YOU)' : '');
             const colour = p.present === false ? COLORS.ink : mine ? COLORS.white : COLORS.accentDim;
-            r.drawText(label, CANVAS_WIDTH / 2, 216 + i * 12, colour, 'center', 1);
+            r.drawText(label, CANVAS_WIDTH / 2, roomBottom + 36 + i * 12, colour, 'center', 1);
         });
 
         this._renderHostGameList();
@@ -631,12 +644,23 @@ class Hub {
         r.drawText('TO PICK A GAME', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 52, COLORS.warn, 'center', 1);
     }
 
+    // How big a code can be here. It is read across a table, sometimes at arm
+    // length by somebody holding a phone at an angle in bad light, so it takes
+    // every pixel the screen can spare rather than a polite fixed square.
+    _qrSize(top, reserveBelow) {
+        const available = CANVAS_HEIGHT - top - reserveBelow;
+        return Math.max(72, Math.min(CANVAS_WIDTH - 16, available));
+    }
+
     // A phone screen is emissive, so a QR on it scans easily even in a dim pub -
     // but it still needs true white behind it and a quiet zone, or the dark
     // theme bleeds into the finder patterns and readers give up.
-    _renderQr(payload, top) {
+    //
+    // Returns the y it finished at, so whatever follows sits under the code
+    // that was actually drawn rather than under one assumed to be a fixed size.
+    _renderQr(payload, top, size) {
         const r = this.renderer;
-        if (!payload) return;
+        if (!payload) return top;
         if (this._qrPayload !== payload) {
             try {
                 this._qr = qrMatrix(payload);
@@ -649,12 +673,14 @@ class Hub {
         }
         if (!this._qr) {
             r.drawText(this._qrError || 'QR UNAVAILABLE', CANVAS_WIDTH / 2, top + 40, COLORS.danger, 'center', 1);
-            return;
+            return top + 56;
         }
 
         const modules = this._qr.length;
         const QUIET = 4;
-        const scale = Math.max(2, Math.floor(104 / (modules + QUIET * 2)));
+        // Whole pixels per module: a fractional scale smears module edges into
+        // each other and a reader that would have coped gives up instead.
+        const scale = Math.max(2, Math.floor(size / (modules + QUIET * 2)));
         const box = (modules + QUIET * 2) * scale;
         const x0 = Math.round((CANVAS_WIDTH - box) / 2);
 
@@ -667,6 +693,7 @@ class Hub {
                 }
             }
         }
+        return top + box;
     }
 
     _renderHostGameList() {
