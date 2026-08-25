@@ -9,7 +9,7 @@
 // which PLAY_HEIGHT-derived game layouts already are. Clamped to a sane
 // range so a desktop window or tablet doesn't produce a bizarre shape.
 const viewportRatio = typeof window !== 'undefined' && window.innerWidth
-    ? window.innerHeight / window.innerWidth
+    ? (window.visualViewport?.height || window.innerHeight) / (window.visualViewport?.width || window.innerWidth)
     : 320 / 240;
 const CLAMPED_RATIO = Math.max(1.3, Math.min(2.3, viewportRatio));
 
