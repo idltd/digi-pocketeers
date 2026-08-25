@@ -148,6 +148,21 @@ on every phone at the table. Tilt-driven games are solo games.
 Sound is part of the toy. Every phone plays its own player's sounds, never the
 whole table's. A phone can be silenced without leaving the game.
 
+## Getting new games
+
+New games reach the table through the host's phone, because in the pub there is
+nothing else to fetch them from. Guests never update anything, ever.
+
+The host asks for it, and only the host: it is a deliberate act taken somewhere
+with a signal, never a background download and never a thing that happens while
+people are waiting to play. If the phone has no internet, nothing is offered.
+If a refresh does not finish, the games already on the phone are what plays -
+an evening is never spoiled by an update.
+
+The app owns no screen of its own to put this on, so the request lives where the
+app already speaks without one: the ongoing notification it shows while it is
+running. Everything a player chooses still happens in the game's own front page.
+
 ## Out of scope
 
 - Playing with people who are not in the room.
