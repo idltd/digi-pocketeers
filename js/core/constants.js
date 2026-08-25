@@ -57,6 +57,8 @@ export const GAME_LIST = [
     { id: 'pachinko', title: 'POCKET PACHINKO', subtitle: 'TILT TO DROP', tilt: true, multiplayer: false },
     { id: 'derby', title: 'DERBY', subtitle: 'TILT TO STEER', tilt: true, multiplayer: false },
     { id: 'target-range', title: 'TARGET RANGE', subtitle: 'TAP TO SHOOT', tilt: false, multiplayer: false },
+    { id: 'target-range-own', title: 'TARGETS (OWN)', subtitle: 'YOUR OWN RANGE', tilt: false, multiplayer: true, modes: ['race'], mpMode: 'own' },
+    { id: 'target-range-shared', title: 'TARGETS (SHARED)', subtitle: 'FIRST TO HIT', tilt: false, multiplayer: true, modes: ['custom'], mpMode: 'shared' },
     { id: 'baseball', title: 'BASEBALL', subtitle: 'SWIPE TO SWING', tilt: false, multiplayer: false },
     { id: 'pocket-slot', title: 'POCKET SLOT', subtitle: 'TAP TO SPIN', tilt: false, multiplayer: false },
     { id: 'racing-pigs', title: 'RACING PIGS', subtitle: 'PICK YOUR PIG', tilt: false, multiplayer: true, modes: ['custom'] },

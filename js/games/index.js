@@ -31,6 +31,8 @@ const BUILT = {
     'pachinko': PachinkoGame,
     'derby': DerbyGame,
     'target-range': TargetRangeGame,
+    'target-range-own': TargetRangeGame,
+    'target-range-shared': TargetRangeGame,
     'baseball': BaseballGame,
     'pocket-slot': PocketSlotGame,
     'racing-pigs': RacingPigsGame,
