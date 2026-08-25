@@ -8,7 +8,7 @@ import { audio } from './audio.js';
 import { particles } from './particles.js';
 import { getHighScore, getFlag, setFlag } from './storage.js';
 import { createGame } from '../games/index.js';
-import { session, roomFromUrl, multiplayerGames, relayAvailable, PLAYING } from './multiplayer.js';
+import { session, roomFromUrl, multiplayerGames, relayAvailable, LOBBY, PLAYING } from './multiplayer.js';
 import { hostPhone } from './hostphone.js';
 import { qrMatrix } from './qr.js';
 
@@ -400,7 +400,13 @@ class Hub {
                 audio.tick();
                 this.state = STATE_HUB;
                 this.activeGame = null;
-                if (this.screen === MASTER) hostPhone.watch();
+                session.clearGameHandlers();
+                if (this.screen === MASTER) {
+                    session.phase = LOBBY;
+                    session.gameId = null;
+                    session.mode = null;
+                    hostPhone.watch();
+                }
                 return;
             }
             if (tap.x > CANVAS_WIDTH - HUD_HEIGHT) {

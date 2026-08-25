@@ -8,7 +8,7 @@ const LANE_COUNT = 5;
 const PIG_COLORS = [COLORS.accent, COLORS.accent2, COLORS.accent3, COLORS.warn, COLORS.danger];
 
 const TRACK_TOP = PLAY_TOP + 28;
-const TRACK_BOTTOM = PLAY_TOP + PLAY_HEIGHT - 30;
+const TRACK_BOTTOM = PLAY_TOP + PLAY_HEIGHT - 42;
 const TRACK_DIST = TRACK_BOTTOM - TRACK_TOP;
 
 // Race pacing. This is a spectator sport - the point is watching them dawdle,
@@ -18,8 +18,8 @@ const WADDLE_SPEED_MIN = 0.25;
 const WADDLE_SPEED_MAX = 0.6;
 const WADDLE_FRAMES_MIN = 16;
 const WADDLE_FRAMES_MAX = 40;
-const STOP_FRAMES_MIN = 30;
-const STOP_FRAMES_MAX = 60;
+const STOP_FRAMES_MIN = 50;
+const STOP_FRAMES_MAX = 90;
 
 const S_PICK = 'pick';
 const S_READY = 'ready';

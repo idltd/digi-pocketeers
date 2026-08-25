@@ -158,30 +158,31 @@ class PocketAudio {
     // buzz, a bandpass swept up then down across it for the vowel - that
     // sweep is what makes it "oink" rather than beep - and a little filtered
     // noise for breath.
-    _oink(at, base = 150, dur = 0.14, volume = 0.22) {
+    _oink(at, base = 120, dur = 0.22, volume = 0.28) {
         const ctx = this.ctx;
 
         const osc = ctx.createOscillator();
         osc.type = 'sawtooth';
-        // Pitch arcs up then drops away, the shape of the call itself.
-        osc.frequency.setValueAtTime(base * 0.85, at);
-        osc.frequency.linearRampToValueAtTime(base * 1.45, at + dur * 0.22);
-        osc.frequency.linearRampToValueAtTime(base * 0.6, at + dur);
+        osc.frequency.setValueAtTime(base * 0.8, at);
+        osc.frequency.linearRampToValueAtTime(base * 1.5, at + dur * 0.2);
+        osc.frequency.linearRampToValueAtTime(base * 1.1, at + dur * 0.5);
+        osc.frequency.linearRampToValueAtTime(base * 0.5, at + dur);
 
         const shaper = ctx.createWaveShaper();
         shaper.curve = this._grindCurve();
 
         const formant = ctx.createBiquadFilter();
         formant.type = 'bandpass';
-        formant.Q.value = 3.2;
-        formant.frequency.setValueAtTime(420, at);
-        formant.frequency.linearRampToValueAtTime(980, at + dur * 0.3);
-        formant.frequency.linearRampToValueAtTime(360, at + dur);
+        formant.Q.value = 2.8;
+        formant.frequency.setValueAtTime(350, at);
+        formant.frequency.linearRampToValueAtTime(1100, at + dur * 0.25);
+        formant.frequency.linearRampToValueAtTime(700, at + dur * 0.6);
+        formant.frequency.linearRampToValueAtTime(300, at + dur);
 
         const env = ctx.createGain();
-        // Snappy attack, quick fall - a grunt is a thump of air, not a note.
         env.gain.setValueAtTime(0.0001, at);
-        env.gain.exponentialRampToValueAtTime(volume, at + 0.012);
+        env.gain.exponentialRampToValueAtTime(volume, at + 0.015);
+        env.gain.setValueAtTime(volume * 0.85, at + dur * 0.4);
         env.gain.exponentialRampToValueAtTime(0.0001, at + dur);
 
         osc.connect(shaper);
@@ -195,11 +196,12 @@ class PocketAudio {
         breath.buffer = this._noiseBuffer();
         const bf = ctx.createBiquadFilter();
         bf.type = 'bandpass';
-        bf.frequency.value = 1400;
-        bf.Q.value = 0.8;
+        bf.frequency.value = 1200;
+        bf.Q.value = 0.6;
         const bg = ctx.createGain();
-        bg.gain.setValueAtTime(volume * 0.35, at);
-        bg.gain.exponentialRampToValueAtTime(0.0001, at + dur * 0.8);
+        bg.gain.setValueAtTime(volume * 0.45, at);
+        bg.gain.exponentialRampToValueAtTime(volume * 0.2, at + dur * 0.5);
+        bg.gain.exponentialRampToValueAtTime(0.0001, at + dur * 0.9);
         breath.connect(bf);
         bf.connect(bg);
         bg.connect(ctx.destination);
@@ -243,11 +245,11 @@ class PocketAudio {
             return at - start;
         }
 
-        const base = 135 + Math.random() * 45;
+        const base = 110 + Math.random() * 35;
         for (let i = 0; i < count; i++) {
-            const dur = 0.15 - i * 0.02;
-            this._oink(at, base * (1 - i * 0.09), dur, 0.22 - i * 0.02);
-            at += dur + 0.055 + Math.random() * 0.04;
+            const dur = 0.24 - i * 0.03;
+            this._oink(at, base * (1 - i * 0.08), dur, 0.28 - i * 0.03);
+            at += dur + 0.12 + Math.random() * 0.1;
         }
         return at - start;
     }
