@@ -7,7 +7,6 @@ const GAME_ID = 'target-range';
 const RANGE_X = 10;
 const RANGE_Y = PLAY_TOP + 8;
 const RANGE_W = CANVAS_WIDTH - 20;
-const RANGE_H = PLAY_HEIGHT - 40;
 
 const ROUND_TIME = 40 * 60;
 const TARGET_TTL = 70;
@@ -39,6 +38,10 @@ export class TargetRangeGame {
         this._stateTimer = 40;
         this._nextTargetId = 0;
 
+        const playerCount = this.session?.players?.length || 0;
+        const scoreboardH = this.mp ? 20 + playerCount * 11 : 20;
+        this.rangeH = PLAY_HEIGHT - scoreboardH - 8;
+
         this.mp = !!(this.session && this.session.connected && this.session.gameId);
         this.mpMode = this.meta.mpMode || null;
         this.scores = {};
@@ -63,7 +66,7 @@ export class TargetRangeGame {
     _spawnTarget() {
         const r = Math.max(9, 16 - this._difficulty() * 3);
         const x = RANGE_X + r + Math.random() * (RANGE_W - r * 2);
-        const y = RANGE_Y + r + Math.random() * (RANGE_H - r * 2);
+        const y = RANGE_Y + r + Math.random() * (this.rangeH - r * 2);
         const bonus = Math.random() < 0.15;
         const id = this._nextTargetId++;
         this.targets.push({ id, x, y, r, ttl: TARGET_TTL, bonus });
@@ -260,7 +263,7 @@ export class TargetRangeGame {
     _updateShared() {
         if (!this.isHost) {
             const tap = this.input.consumeTap();
-            if (tap && tap.y >= RANGE_Y && tap.y <= RANGE_Y + RANGE_H) {
+            if (tap && tap.y >= RANGE_Y && tap.y <= RANGE_Y + this.rangeH) {
                 this.session.send({ k: 'tap', x: tap.x, y: tap.y });
             }
             return;
@@ -285,7 +288,7 @@ export class TargetRangeGame {
         this.targets = this.targets.filter((t) => t.ttl > 0);
 
         const tap = this.input.consumeTap();
-        if (tap && tap.y >= RANGE_Y && tap.y <= RANGE_Y + RANGE_H) {
+        if (tap && tap.y >= RANGE_Y && tap.y <= RANGE_Y + this.rangeH) {
             this._onNetShared(this.session.me.id, { k: 'tap', x: tap.x, y: tap.y });
         }
 
@@ -333,8 +336,8 @@ export class TargetRangeGame {
 
     render() {
         const r = this.renderer;
-        r.rect(RANGE_X, RANGE_Y, RANGE_W, RANGE_H, COLORS.lcdBg);
-        r.strokeRect(RANGE_X, RANGE_Y, RANGE_W, RANGE_H, COLORS.accentDim);
+        r.rect(RANGE_X, RANGE_Y, RANGE_W, this.rangeH, COLORS.lcdBg);
+        r.strokeRect(RANGE_X, RANGE_Y, RANGE_W, this.rangeH, COLORS.accentDim);
 
         for (const t of this.targets) {
             const flashing = t.ttl < 20 && Math.floor(t.ttl / 4) % 2 === 0;
@@ -371,7 +374,7 @@ export class TargetRangeGame {
 
     _renderHud() {
         const r = this.renderer;
-        const y = RANGE_Y + RANGE_H + 6;
+        const y = RANGE_Y + this.rangeH + 6;
         const seconds = Math.ceil(this.timeLeft / 60);
 
         if (this.mp) {

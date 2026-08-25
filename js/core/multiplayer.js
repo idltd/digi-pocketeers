@@ -151,6 +151,15 @@ export class Session {
         this._emit('change', this);
     }
 
+    backToLobby() {
+        if (!this.isHost) return;
+        this.phase = LOBBY;
+        this.gameId = null;
+        this.mode = null;
+        net.send({ k: 'lobby' });
+        this._emit('change', this);
+    }
+
     _onMessage({ from, data }) {
         if (!data || typeof data !== 'object') return;
 
@@ -167,6 +176,13 @@ export class Session {
                 if (from !== this._hostId()) return;
                 this.phase = RESULTS;
                 this.results = data.results;
+                this._emit('change', this);
+                return;
+            case 'lobby':
+                if (from !== this._hostId()) return;
+                this.phase = LOBBY;
+                this.gameId = null;
+                this.mode = null;
                 this._emit('change', this);
                 return;
             case 'game':

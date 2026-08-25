@@ -357,9 +357,12 @@ class Hub {
     _onSessionChange() {
         if (session.phase === PLAYING && this.state === STATE_HUB && session.gameId) {
             const meta = GAME_LIST.find((g) => g.id === session.gameId);
-            // Multiplayer is served over plain http, so tilt is unavailable -
-            // never show the tilt prompt here, just enter.
             if (meta) this._enterGame(meta);
+        }
+        if (session.phase === LOBBY && this.state === STATE_GAME && this.screen === JOIN) {
+            this.state = STATE_HUB;
+            this.activeGame = null;
+            session.clearGameHandlers();
         }
     }
 
@@ -394,17 +397,16 @@ class Hub {
 
     _updateGame(dt) {
         const tap = input.tapped ? { x: input.tapX, y: input.tapY } : null;
+        const isGuest = this.screen === JOIN;
         if (tap && tap.y < HUD_HEIGHT) {
-            if (tap.x < BACK_BUTTON_W) {
+            if (tap.x < BACK_BUTTON_W && !isGuest) {
                 input.consumeTap();
                 audio.tick();
                 this.state = STATE_HUB;
                 this.activeGame = null;
                 session.clearGameHandlers();
                 if (this.screen === MASTER) {
-                    session.phase = LOBBY;
-                    session.gameId = null;
-                    session.mode = null;
+                    session.backToLobby();
                     hostPhone.watch();
                 }
                 return;
@@ -765,9 +767,12 @@ class Hub {
 
     _renderGame() {
         const r = this.renderer;
+        const isGuest = this.screen === JOIN;
         r.rect(0, 0, CANVAS_WIDTH, HUD_HEIGHT, COLORS.lcdBg);
-        r.roundRect(3, 4, BACK_BUTTON_W - 8, HUD_HEIGHT - 8, 5, COLORS.ink);
-        r.drawText('< BACK', 8, 11, COLORS.white, 'left', 1);
+        if (!isGuest) {
+            r.roundRect(3, 4, BACK_BUTTON_W - 8, HUD_HEIGHT - 8, 5, COLORS.ink);
+            r.drawText('< BACK', 8, 11, COLORS.white, 'left', 1);
+        }
         r.drawText(this.activeMeta.title, CANVAS_WIDTH / 2, 11, COLORS.white, 'center', 1);
         r.drawText(audio.muted ? 'X' : ')', CANVAS_WIDTH - 16, 11, COLORS.white, 'left', 1);
         this.activeGame.render();
