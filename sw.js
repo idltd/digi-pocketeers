@@ -29,6 +29,7 @@ const ASSETS = [
     './js/core/hub.js',
     './js/core/net.js',
     './js/core/multiplayer.js',
+    './js/core/hostphone.js',
     './js/core/qr.js',
     './js/games/index.js',
     './js/games/amazing-maze.js',
