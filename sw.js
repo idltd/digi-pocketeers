@@ -31,6 +31,7 @@ const ASSETS = [
     './js/core/multiplayer.js',
     './js/core/hostphone.js',
     './js/core/qr.js',
+    './js/core/qrcode-generator.js',
     './js/games/index.js',
     './js/games/amazing-maze.js',
     './js/games/secret-passage.js',
