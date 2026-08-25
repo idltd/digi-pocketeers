@@ -103,7 +103,7 @@ export class TargetRangeGame {
                 break;
             case 'gameover':
                 this.scores = msg.scores;
-                this.state = S_GAMEOVER;
+                this._gameOver();
                 break;
         }
     }
@@ -159,7 +159,7 @@ export class TargetRangeGame {
                 break;
             case 'gameover':
                 this.scores = msg.scores;
-                this.state = S_GAMEOVER;
+                this._gameOver();
                 break;
         }
     }
