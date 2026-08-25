@@ -41,12 +41,13 @@ class HostingService : Service(), HostControl {
     private var reservation: WifiManager.LocalOnlyHotspotReservation? = null
     private var server: PocketeersServer? = null
     private var port = 0
+    private lateinit var webAssets: WebAssets
     private var running = false
     private var stopping = false
     private var hotspotBusy = false
     private var addressesBeforeHotspot = emptySet<String>()
 
-    override fun onCreate() { super.onCreate(); createChannel() }
+    override fun onCreate() { super.onCreate(); createChannel(); webAssets = WebAssets(this) }
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -62,11 +63,21 @@ class HostingService : Service(), HostControl {
     private fun startServer() {
         if (running || stopping) return
         running = true
-        HostingStateStore.state.value = HostingState.Starting("Starting the game server…")
-        ServiceCompat.startForeground(this, NOTIFICATION, notification("Starting the game server…"),
+        val startMsg = if (webAssets.cached()) "Starting the game server…" else "Downloading the games…"
+        HostingStateStore.state.value = HostingState.Starting(startMsg)
+        ServiceCompat.startForeground(this, NOTIFICATION, notification(startMsg),
             if (Build.VERSION.SDK_INT >= 29) ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE else 0)
         scope.launch {
-            val chosen = bindServer() ?: return@launch fail("Ports 8080–8089 are unavailable.")
+            try {
+                webAssets.download(BuildConfig.VERSION_CODE) { done, total ->
+                    val msg = "Downloading… $done / $total"
+                    HostingStateStore.state.value = HostingState.Starting(msg)
+                    updateNotification(msg)
+                }
+            } catch (e: Exception) {
+                return@launch fail(e.message ?: "Download failed.")
+            }
+            val chosen = bindServer() ?: return@launch fail("Ports 8090–8099 are unavailable.")
             port = chosen
             val url = "http://$LOOPBACK:$chosen/"
             if (!verify(url)) return@launch fail("The game server did not answer on this phone.")
@@ -83,7 +94,7 @@ class HostingService : Service(), HostControl {
     private fun bindServer(): Int? {
         for (candidatePort in 8090..8099) {
             try {
-                val candidate = PocketeersServer(assets, candidatePort, this)
+                val candidate = PocketeersServer(webAssets.dir, candidatePort, this)
                 candidate.start(SOCKET_READ_TIMEOUT, false)
                 server = candidate
                 return candidatePort

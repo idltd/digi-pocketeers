@@ -18,6 +18,7 @@ const CACHE_NAME = `pocketeers-${VERSION}`;
 const ASSETS = [
     './',
     './index.html',
+    './files.json',
     './manifest.json',
     './css/style.css',
     './css/fonts/fredoka-600-latin.woff2',

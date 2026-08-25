@@ -1,10 +1,10 @@
 package uk.co.pocketeers.host
 
-import android.content.res.AssetManager
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoWSD
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
+import java.io.File
 
 // What the served page may ask the phone to do. Only the host's own browser is
 // allowed to call it, so guests cannot start or stop the hotspot they are on.
@@ -15,7 +15,7 @@ interface HostControl {
     fun onRoster(roster: RoomManager.Roster)
 }
 
-class PocketeersServer(private val assets: AssetManager, port: Int, private val control: HostControl) : NanoWSD(port) {
+class PocketeersServer(private val webDir: File, port: Int, private val control: HostControl) : NanoWSD(port) {
     private val relay = RoomManager(changed = { control.onRoster(it) })
     private val sockets = mutableSetOf<Socket>()
     // Counted because a page can believe it is connected while the relay has
@@ -29,12 +29,12 @@ class PocketeersServer(private val assets: AssetManager, port: Int, private val 
         if (path.startsWith("/host/")) return control(session, path)
         if (session.method != NanoHTTPD.Method.GET && session.method != NanoHTTPD.Method.HEAD) return newFixedLengthResponse(NanoHTTPD.Response.Status.METHOD_NOT_ALLOWED, "text/plain", "method not allowed")
         val asset = AssetRules.safePath(session.uri) ?: return newFixedLengthResponse(NanoHTTPD.Response.Status.BAD_REQUEST, "text/plain", "bad path")
+        val file = File(webDir, asset)
+        if (!file.isFile || !file.canonicalPath.startsWith(webDir.canonicalPath)) return newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, "text/plain", "not found")
         return try {
-            var bytes = assets.open("web/$asset").use { it.readBytes() }
+            var bytes = file.readBytes()
             if (asset == "index.html") bytes = injectOrigin(bytes, session)
-            newFixedLengthResponse(NanoHTTPD.Response.Status.OK, AssetRules.mime(asset), ByteArrayInputStream(bytes), bytes.size.toLong())// no-store, not no-cache: the APK is the only source of these files and it
-            // is on the same phone, so caching them buys nothing and has already cost
-            // an evening of testing a build that was not the one installed.
+            newFixedLengthResponse(NanoHTTPD.Response.Status.OK, AssetRules.mime(asset), ByteArrayInputStream(bytes), bytes.size.toLong())
             .apply { addHeader("Cache-Control", "no-store, must-revalidate") }
         } catch (_: Exception) { newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, "text/plain", "not found") }
     }
