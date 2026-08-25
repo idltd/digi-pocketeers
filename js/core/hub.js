@@ -29,7 +29,8 @@ const ROW_H = 44;
 // Front panels: full width, tall enough to hit with a thumb across a table.
 const PANEL_H = 52;
 const PANEL_GAP = 12;
-const PANEL_TOP = 62;
+const PANEL_FOOTER = 40;
+const TITLE_BOTTOM = 34;
 
 class Hub {
     constructor() {
@@ -160,8 +161,17 @@ class Hub {
 
     // --- Front page -------------------------------------------------------
 
+    // Centred in whatever is left under the title rather than pinned to a
+    // number. Phone screens run from square-ish to very tall, and three panels
+    // hugging the top of a tall one leaves the bottom third looking like the
+    // page failed to finish loading.
+    _panelTop() {
+        const block = 3 * PANEL_H + 2 * PANEL_GAP + PANEL_FOOTER;
+        return Math.max(TITLE_BOTTOM + 12, TITLE_BOTTOM + (CANVAS_HEIGHT - TITLE_BOTTOM - block) / 2);
+    }
+
     _panelY(i) {
-        return PANEL_TOP + i * (PANEL_H + PANEL_GAP);
+        return this._panelTop() + i * (PANEL_H + PANEL_GAP);
     }
 
     _frontHit(p) {
