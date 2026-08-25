@@ -15,7 +15,7 @@ const CLAMPED_RATIO = Math.max(1.3, Math.min(2.3, viewportRatio));
 
 // Kept in step with sw.js and the APK's versionName, so a phone can be asked
 // which build it is actually running without guessing from behaviour.
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.3.0';
 
 export const CANVAS_WIDTH = 240;
 export const CANVAS_HEIGHT = Math.round(CANVAS_WIDTH * CLAMPED_RATIO);
