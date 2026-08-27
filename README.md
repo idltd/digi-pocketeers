@@ -3,7 +3,7 @@
 **A cutesy, candy-colored tribute to classic Tomy Pocketeers handheld games, reborn for your phone.**
 
 [![Play now](https://img.shields.io/badge/play-digi%20pocketeers-ff3d81?style=for-the-badge)](https://idltd.github.io/digi-pocketeers/)
-[![Games](https://img.shields.io/badge/games-8-00e5ff)](#whats-in-the-box)
+[![Games](https://img.shields.io/badge/games-8%20solo%20%2B%203%20multiplayer-00e5ff)](#whats-in-the-box)
 [![PWA](https://img.shields.io/badge/PWA-offline--capable-7cff6b)](#architecture)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-b69cff)](LICENSE)
 
@@ -18,18 +18,21 @@ not an official Tomy product.
 
 ## What's in the box
 
-One hub app, eight games, all sharing the same rendering/audio/input engine:
+One hub app, eight solo games and three multiplayer modes, all sharing the same
+rendering/audio/input engine:
 
-| Game | Mechanic | Control |
-| --- | --- | --- |
-| Amazing Maze | Roll a ball through a procedurally generated maze to the goal, avoiding trap holes, against a timer | Tilt |
-| Secret Passage | Same maze engine, but fog-of-war hides everything outside a small radius around the ball; a faint compass points toward the goal | Tilt |
-| Pocket Pachinko | Drop a ball through a peg field into scoring pockets — edges pay more than the easy center drain | Tilt |
-| Derby | Endless-runner style race, dodging obstacles, with a tap-to-dash boost | Tilt + tap |
-| Target Range | Targets pop up and expire; tap them before they vanish | Tap |
-| Baseball | Pitches fall down the screen; swipe at the right moment to hit | Swipe |
-| Pocket Slot | Three-reel fruit machine, spend credits to spin | Tap |
-| Racing Pigs | Pick a pig; lanes of pigs waddle-stop-snort their way up the screen at random, first to the line wins | Tap to pick |
+| Game | Mechanic | Control | MP |
+| --- | --- | --- | --- |
+| Amazing Maze | Roll a ball through a procedurally generated maze to the goal, avoiding trap holes, against a timer | Tilt | |
+| Secret Passage | Same maze engine, but fog-of-war hides everything outside a small radius around the ball; a faint compass points toward the goal | Tilt | |
+| Pocket Pachinko | Drop a ball through a peg field into scoring pockets — edges pay more than the easy center drain | Tilt | |
+| Derby | Endless-runner style race, dodging obstacles, with a tap-to-dash boost | Tilt + tap | |
+| Target Range | Targets pop up and expire; tap them before they vanish | Tap | |
+| Targets (Own) | Each player's phone runs its own target range simultaneously; highest score wins | Tap | Race |
+| Targets (Shared) | All players tap the same targets on every screen; first to hit scores the point | Tap | Custom |
+| Baseball | Pitches fall down the screen; swipe at the right moment to hit | Swipe | |
+| Pocket Slot | Three-reel fruit machine, spend credits to spin | Tap | |
+| Racing Pigs | Pick a pig; lanes of pigs waddle-stop-snort their way up the screen at random, first to the line wins | Tap to pick | Custom |
 
 ## Architecture
 
@@ -49,10 +52,12 @@ One hub app, eight games, all sharing the same rendering/audio/input engine:
 ```text
 digi-pocketeers/
 ├── js/core/       # shared engine: constants (incl. the candy color palette),
-│                  # renderer (+ pixel font, particles, screen shake), audio,
-│                  # input (touch/tap/swipe + tilt with iOS permission handling
-│                  # and a drag-to-steer fallback), storage (localStorage high
-│                  # scores), hub.js (title screen + game switcher + loop)
+│                  # renderer (+ particles, screen shake), audio, input
+│                  # (touch/tap/swipe + tilt with iOS permission handling and a
+│                  # drag-to-steer fallback), storage (localStorage high scores),
+│                  # multiplayer.js (session/lobby), net.js (WebSocket relay
+│                  # transport), hostphone.js (Android host-app bridge),
+│                  # hub.js (title screen + game switcher + loop)
 ├── js/games/      # one file per game, registered in index.js
 ├── css/style.css, index.html, manifest.json, sw.js, generate-icons.js
 ```
@@ -111,33 +116,45 @@ need a secure context (see above) — plain `http://` on a LAN won't drive the s
 so use the deployed `https://idltd.github.io/digi-pocketeers/` build or a local HTTPS
 tunnel for full testing.
 
+## Multiplayer
+
+The host phone's Android app creates a Wi-Fi access point and runs a WebSocket relay
+(plain `http://`, no internet required). Guests scan the host's QR code to join — no
+install, no typing, just a browser tab on the hotspot.
+
+The host is authoritative for all shared state. Guests send intents ("I pick lane 3",
+"I tapped here") and render whatever the host broadcasts. This keeps cheating
+impossible and means new games ship without an APK rebuild — all code arrives over
+the wire.
+
+Four multiplayer modes are defined; a game declares which it supports:
+
+- **Turns** — one shared state, screen passes round the table.
+- **Race** — everyone plays simultaneously on their own device, best outcome wins.
+- **Mega** — simultaneous play where you can see everyone's screen.
+- **Custom** — bespoke per-game logic (Racing Pigs picking, Shared Targets).
+
+Currently implemented: Racing Pigs (Custom), Targets Own (Race), Targets Shared
+(Custom).
+
+### Mixed-device groups
+
+Devices report their canvas height to the host on connect. The host uses the
+minimum across all players, so game fields (pig race tracks, target ranges) are
+sized to fit every screen — a tablet joining a group of phones shrinks the field
+rather than rendering content off-screen.
+
 ## Future work
 
-- **Multiplayer**: one device becomes "master", spins up a local access point, and
-  shows a QR code for others to join. Rather than one bespoke networking model per
-  game, the plan is a small set of generic modes any game can opt into:
-  - **Turns** — one shared game state; everyone watches the current player's screen,
-    turn passes around the group.
-  - **Race** — everyone plays the same game simultaneously, each on their own device,
-    racing for the best outcome (leaderboard-style).
-  - **Mega** — everyone plays simultaneously and can see everyone else's screen too
-    (needs a way to visually tell players apart — pig color, player initials, etc).
-  - **Custom** — bespoke per-game multiplayer logic that doesn't fit the generic
-    modes, e.g. a later Racing Pigs version where you can actively help your own pig
-    or hinder someone else's rather than just picking and watching.
-  Racing Pigs (see below) is the natural first candidate once this lands, since it's
-  already structured around per-player pig ownership.
+- **More multiplayer modes**: Turns and Mega are defined but not yet used by any game.
+- **iOS verification**: tilt-permission flow and touch-target sizing not yet confirmed
+  on iOS Safari.
 
 ## Status
 
-All 8 games are implemented and playable, running on the candy-colored palette with
-particle/screen-shake feedback, a real font (Fredoka) instead of a bitmap font, and a
-canvas that matches the device's aspect ratio instead of letterboxing. Verified working
-on Android over HTTPS, including tilt. Not yet verified on iOS — worth checking the
-tilt-permission flow and touch-target sizing there before calling any game "done".
-Racing Pigs is solo-only v1: pick a pig, watch it waddle/stop/snort its way to the
-finish line at random — no active skill yet, that's the "custom" multiplayer mode
-candidate above.
+All 8 solo games and 3 multiplayer modes are implemented and playable. Verified
+working on Android over HTTPS (including tilt) and over the host app's HTTP hotspot
+(multiplayer). Canvas matches the device's aspect ratio instead of letterboxing.
 
 ## License
 
