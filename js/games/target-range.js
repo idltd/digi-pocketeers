@@ -38,11 +38,14 @@ export class TargetRangeGame {
         this._stateTimer = 40;
         this._nextTargetId = 0;
 
+        this.mp = !!(this.session && this.session.connected && this.session.gameId);
+
+        const effectivePlayH = this.mp
+            ? this.session.groupHeight - PLAY_TOP
+            : PLAY_HEIGHT;
         const playerCount = this.session?.players?.length || 0;
         const scoreboardH = this.mp ? 20 + playerCount * 11 : 20;
-        this.rangeH = PLAY_HEIGHT - scoreboardH - 8;
-
-        this.mp = !!(this.session && this.session.connected && this.session.gameId);
+        this.rangeH = effectivePlayH - scoreboardH - 8;
         this.mpMode = this.meta.mpMode || null;
         this.scores = {};
         this._syncTick = 0;

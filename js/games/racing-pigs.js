@@ -42,11 +42,15 @@ export class RacingPigsGame {
     enter() {
         this.state = S_PICK;
         this.pickedLane = null;
-        this._buildPigs();
 
         // Multiplayer only when the lobby started this; solo leaves the session
         // disconnected and every branch below falls through to local play.
         this.mp = !!(this.session && this.session.connected && this.session.gameId === GAME_ID);
+        this._trackBottom = this.mp
+            ? this.session.groupHeight - 42
+            : TRACK_BOTTOM;
+
+        this._buildPigs();
         this.owners = {};      // lane -> player id
         this._syncTick = 0;
 
@@ -85,7 +89,7 @@ export class RacingPigsGame {
             this.pigs.push({
                 lane: i,
                 color: PIG_COLORS[i],
-                y: TRACK_BOTTOM,
+                y: this._trackBottom,
                 phase: 'stop',
                 phaseTimer: Math.floor(randRange(20, 50)),
                 snortTimer: 0,
@@ -188,7 +192,7 @@ export class RacingPigsGame {
             if (!tap) return;
             for (let i = 0; i < LANE_COUNT; i++) {
                 const { x, laneH } = this._laneY(i);
-                if (tap.x >= x - laneH / 2 && tap.x < x + laneH / 2 && tap.y >= TRACK_TOP && tap.y <= TRACK_BOTTOM + 20) {
+                if (tap.x >= x - laneH / 2 && tap.x < x + laneH / 2 && tap.y >= TRACK_TOP && tap.y <= this._trackBottom + 20) {
                     if (this.mp) {
                         if (this.owners[i] !== undefined) return;   // taken
                         this.audio.select();
@@ -293,13 +297,13 @@ export class RacingPigsGame {
 
     render() {
         const r = this.renderer;
-        r.roundRect(6, TRACK_TOP - 14, CANVAS_WIDTH - 12, TRACK_BOTTOM - TRACK_TOP + 34, 8, COLORS.lcdBg);
-        r.strokeRect(6, TRACK_TOP - 14, CANVAS_WIDTH - 12, TRACK_BOTTOM - TRACK_TOP + 34, COLORS.accent2);
+        r.roundRect(6, TRACK_TOP - 14, CANVAS_WIDTH - 12, this._trackBottom - TRACK_TOP + 34, 8, COLORS.lcdBg);
+        r.strokeRect(6, TRACK_TOP - 14, CANVAS_WIDTH - 12, this._trackBottom - TRACK_TOP + 34, COLORS.accent2);
         r.line(6, TRACK_TOP, CANVAS_WIDTH - 6, TRACK_TOP, COLORS.warn, 2);
 
         for (let i = 0; i < LANE_COUNT; i++) {
             const { x, laneH } = this._laneY(i);
-            if (i > 0) r.line(x - laneH / 2, TRACK_TOP, x - laneH / 2, TRACK_BOTTOM + 16, COLORS.ink);
+            if (i > 0) r.line(x - laneH / 2, TRACK_TOP, x - laneH / 2, this._trackBottom + 16, COLORS.ink);
         }
 
         for (const pig of this.pigs) {
@@ -307,12 +311,12 @@ export class RacingPigsGame {
             const { x } = this._laneY(pig.lane);
             this._drawPig(x, pig);
             if (this.pickedLane === pig.lane) {
-                r.drawText('*', x, TRACK_BOTTOM + 22, COLORS.warn, 'center', 1);
+                r.drawText('*', x, this._trackBottom + 22, COLORS.warn, 'center', 1);
             } else if (this.mp && this.owners[pig.lane] !== undefined) {
                 // Someone else's pig - show whose, so the table can see the
                 // field fill up while picking.
                 const name = this._ownerName(pig.lane);
-                r.drawText(name.slice(0, 4), x, TRACK_BOTTOM + 22, COLORS.accentDim, 'center', 1);
+                r.drawText(name.slice(0, 4), x, this._trackBottom + 22, COLORS.accentDim, 'center', 1);
             }
         }
 

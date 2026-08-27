@@ -7,7 +7,7 @@
 // - so all game code must arrive over the wire from the host, which is exactly
 // what keeps new games from requiring an APK rebuild.
 
-import { GAME_LIST } from './constants.js';
+import { GAME_LIST, CANVAS_HEIGHT } from './constants.js';
 import { net } from './net.js';
 import { hostPhone } from './hostphone.js';
 
@@ -67,6 +67,9 @@ export class Session {
         this.isHost = false;
         this.connected = false;
         this.error = null;
+        this.groupHeight = CANVAS_HEIGHT;
+        this._playerHeights = {};
+        this._screenSent = false;
 
         this._handlers = new Map();
         this._gameHandlers = new Set();
@@ -106,6 +109,9 @@ export class Session {
         this.phase = LOBBY;
         this.gameId = null;
         this.mode = null;
+        this.groupHeight = CANVAS_HEIGHT;
+        this._playerHeights = {};
+        this._screenSent = false;
         this._emit('change', this);
     }
 
@@ -127,6 +133,28 @@ export class Session {
         this.players = net.players;
         this.me = net.players.find((p) => p.id === net.id) || null;
         this.error = net.lastError;
+
+        if (this.connected && this.me && !this._screenSent) {
+            this._screenSent = true;
+            if (this.isHost) {
+                this._playerHeights[this.me.id] = CANVAS_HEIGHT;
+                this._recomputeGroupHeight();
+            } else {
+                net.send({ k: 'screen', h: CANVAS_HEIGHT });
+            }
+        }
+        if (!this.connected) this._screenSent = false;
+
+        if (this.isHost) {
+            const ids = new Set(this.players.map((p) => p.id));
+            for (const id of Object.keys(this._playerHeights)) {
+                if (!ids.has(id)) delete this._playerHeights[id];
+            }
+            if (Object.keys(this._playerHeights).length > 0) {
+                this._recomputeGroupHeight();
+            }
+        }
+
         this._emit('change', this);
     }
 
@@ -185,11 +213,29 @@ export class Session {
                 this.mode = null;
                 this._emit('change', this);
                 return;
+            case 'screen':
+                if (this.isHost) {
+                    this._playerHeights[from] = data.h;
+                    this._recomputeGroupHeight();
+                }
+                return;
+            case 'group':
+                if (!this.isHost) {
+                    this.groupHeight = data.h;
+                }
+                return;
             case 'game':
                 // Anything game-specific goes straight to the running game.
                 for (const fn of this._gameHandlers) fn(from, data.payload);
                 return;
         }
+    }
+
+    _recomputeGroupHeight() {
+        const heights = Object.values(this._playerHeights);
+        if (heights.length === 0) return;
+        this.groupHeight = Math.min(...heights);
+        net.send({ k: 'group', h: this.groupHeight });
     }
 
     _hostId() {
