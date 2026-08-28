@@ -11,3 +11,7 @@ host-app/app/build/
 local.properties
 host-app/.android-user/
 host-app/app/src/main/assets/
+
+# Recoreco
+.scratch/
+.bridge/
