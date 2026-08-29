@@ -27,6 +27,7 @@ class ComingSoonGame {
 
 const BUILT = {
     'amazing-maze': AmazingMazeGame,
+    'amazing-maze-race': AmazingMazeGame,
     'secret-passage': SecretPassageGame,
     'pachinko': PachinkoGame,
     'derby': DerbyGame,

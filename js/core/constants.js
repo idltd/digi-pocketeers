@@ -53,6 +53,7 @@ export const STATE_TILT_PROMPT = 'tilt_prompt';
 // Registered in build order. Each entry: id, title, subtitle, uses tilt?
 export const GAME_LIST = [
     { id: 'amazing-maze', title: 'AMAZING MAZE', subtitle: 'TILT TO ROLL', tilt: true, multiplayer: false },
+    { id: 'amazing-maze-race', title: 'MAZE RACE', subtitle: 'RACE THE MAZE', tilt: true, multiplayer: true, modes: ['race'] },
     { id: 'secret-passage', title: 'SECRET PASSAGE', subtitle: 'TILT TO ROLL', tilt: true, multiplayer: false },
     { id: 'pachinko', title: 'POCKET PACHINKO', subtitle: 'TILT TO DROP', tilt: true, multiplayer: false },
     { id: 'derby', title: 'DERBY', subtitle: 'TILT TO STEER', tilt: true, multiplayer: false },
