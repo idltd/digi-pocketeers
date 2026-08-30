@@ -16,6 +16,11 @@ class WebAssets(context: Context) {
 
     fun cached(): Boolean = versionFile.exists()
 
+    fun forceRedownload(versionCode: Int, onProgress: (done: Int, total: Int) -> Unit) {
+        if (versionFile.exists()) versionFile.delete()
+        download(versionCode, onProgress)
+    }
+
     // Fetch files.json from GitHub Pages, download every file it lists, write
     // a version stamp when done. The stamp is the build's version code so an
     // APK update re-downloads (picking up any new games the deployed site has).

@@ -55,6 +55,9 @@ class Hub {
         // scan to play. Latecomers can be sent back to step one from step two.
         this.masterStep = 'wifi';
         this.listScroll = 0;
+        this._refreshing = false;
+        this._refreshResult = null;
+        this._refreshTimer = 0;
         this._dragLastY = null;
 
         session.on('change', () => this._onSessionChange());
@@ -215,6 +218,26 @@ class Hub {
     }
 
     _updateFront(tap) {
+        if (this._refreshTimer > 0) this._refreshTimer--;
+        if (this._refreshTimer === 0) this._refreshResult = null;
+
+        if (hostPhone.present && !this._refreshing) {
+            const refreshY = CANVAS_HEIGHT - 18;
+            if (tap.y >= refreshY - 6 && tap.y <= refreshY + 8) {
+                input.consumeTap();
+                audio.tick();
+                this._refreshing = true;
+                this._refreshResult = null;
+                hostPhone.refreshGames().then((ok) => {
+                    this._refreshing = false;
+                    this._refreshResult = ok ? 'UPDATED' : 'FAILED';
+                    this._refreshTimer = 120;
+                    if (ok) setTimeout(() => location.reload(), 800);
+                });
+                return;
+            }
+        }
+
         const hit = this._frontHit(tap);
         if (hit < 0) return;
         input.consumeTap();
@@ -475,6 +498,18 @@ class Hub {
         } else {
             r.drawText('TO RUN A TABLE YOURSELF,', CANVAS_WIDTH / 2, footer + 44, COLORS.warn, 'center', 1);
             r.drawText('ONE PHONE NEEDS THE APP.', CANVAS_WIDTH / 2, footer + 56, COLORS.warn, 'center', 1);
+        }
+
+        if (hostPhone.present) {
+            const refreshY = CANVAS_HEIGHT - 18;
+            if (this._refreshing) {
+                r.drawText('UPDATING...', CANVAS_WIDTH / 2, refreshY, COLORS.warn, 'center', 1);
+            } else if (this._refreshResult) {
+                const col = this._refreshResult === 'UPDATED' ? COLORS.accent3 : COLORS.danger;
+                r.drawText(this._refreshResult, CANVAS_WIDTH / 2, refreshY, col, 'center', 1);
+            } else {
+                r.drawText('UPDATE GAMES', CANVAS_WIDTH / 2, refreshY, COLORS.accentDim, 'center', 1);
+            }
         }
     }
 

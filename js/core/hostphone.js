@@ -109,6 +109,18 @@ class HostPhone {
         window.location.href = 'pocketeers://hotspot';
     }
 
+    async refreshGames() {
+        if (!this.present) return false;
+        try {
+            const res = await fetch('host/refresh', { cache: 'no-store' });
+            if (!res.ok) return false;
+            const data = await res.json();
+            return !!data.ok;
+        } catch (_) {
+            return false;
+        }
+    }
+
     async dropHotspot() {
         if (!this.present) return;
         this._askedAt = 0;

@@ -111,6 +111,19 @@ class HostingService : Service(), HostControl {
 
     override fun onRoster(roster: RoomManager.Roster) = updateRunning { it.copy(room = roster.room, players = roster.players) }
 
+    override fun refreshAssets(): JSONObject {
+        val result = JSONObject()
+        try {
+            webAssets.forceRedownload(BuildConfig.VERSION_CODE) { done, total ->
+                result.put("progress", "$done/$total")
+            }
+            result.put("ok", true)
+        } catch (e: Exception) {
+            result.put("ok", false).put("error", e.message ?: "Download failed")
+        }
+        return result
+    }
+
     // Asked for by the page. Android's Wi-Fi service refuses a local-only
     // hotspot to an app that is not in the foreground, and a foreground
     // *service* does not count - the proven ReadTheRoom app raises its hotspot

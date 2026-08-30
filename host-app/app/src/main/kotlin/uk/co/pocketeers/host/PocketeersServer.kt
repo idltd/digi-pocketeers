@@ -13,6 +13,7 @@ interface HostControl {
     fun stopHotspot()
     fun status(): JSONObject
     fun onRoster(roster: RoomManager.Roster)
+    fun refreshAssets(): JSONObject
 }
 
 class PocketeersServer(private val webDir: File, port: Int, private val control: HostControl) : NanoWSD(port) {
@@ -58,6 +59,7 @@ class PocketeersServer(private val webDir: File, port: Int, private val control:
             "/host/status" -> json(NanoHTTPD.Response.Status.OK, control.status())
             "/host/start" -> { control.startHotspot(); json(NanoHTTPD.Response.Status.ACCEPTED, control.status()) }
             "/host/stop" -> { control.stopHotspot(); json(NanoHTTPD.Response.Status.OK, control.status()) }
+            "/host/refresh" -> json(NanoHTTPD.Response.Status.OK, control.refreshAssets())
             else -> json(NanoHTTPD.Response.Status.NOT_FOUND, JSONObject().put("error", "no such control"))
         }
     }
