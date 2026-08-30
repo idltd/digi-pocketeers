@@ -34,6 +34,13 @@ function shuffle(arr) {
     return arr;
 }
 
+export const manifest = [
+    { id: 'amazing-maze', title: 'AMAZING MAZE', subtitle: 'TILT TO ROLL', tilt: true, multiplayer: false, order: 10 },
+    { id: 'amazing-maze-race', title: 'MAZE RACE', subtitle: 'RACE THE MAZE', tilt: true, multiplayer: true, modes: ['race'], order: 11 },
+];
+
+export { AmazingMazeGame as Game };
+
 export class AmazingMazeGame {
     constructor(deps, meta) {
         this.renderer = deps.renderer;

@@ -39,6 +39,12 @@ function pickSymbol() {
     return SYMBOLS[0];
 }
 
+export const manifest = [
+    { id: 'pocket-slot', title: 'POCKET SLOT', subtitle: 'TAP TO SPIN', tilt: false, multiplayer: false, order: 70 },
+];
+
+export { PocketSlotGame as Game };
+
 export class PocketSlotGame {
     constructor(deps) {
         this.renderer = deps.renderer;

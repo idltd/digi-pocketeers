@@ -1,14 +1,5 @@
-import { GAME_LIST, CANVAS_WIDTH, PLAY_TOP, PLAY_HEIGHT, COLORS } from '../core/constants.js';
-import { AmazingMazeGame } from './amazing-maze.js';
-import { SecretPassageGame } from './secret-passage.js';
-import { PachinkoGame } from './pachinko.js';
-import { DerbyGame } from './derby.js';
-import { TargetRangeGame } from './target-range.js';
-import { BaseballGame } from './baseball.js';
-import { PocketSlotGame } from './pocket-slot.js';
-import { RacingPigsGame } from './racing-pigs.js';
+import { CANVAS_WIDTH, PLAY_TOP, PLAY_HEIGHT, COLORS } from '../core/constants.js';
 
-// Games not yet built fall back to this placeholder so the hub never breaks.
 class ComingSoonGame {
     constructor(deps, meta) {
         this.deps = deps;
@@ -25,19 +16,29 @@ class ComingSoonGame {
     }
 }
 
-const BUILT = {
-    'amazing-maze': AmazingMazeGame,
-    'amazing-maze-race': AmazingMazeGame,
-    'secret-passage': SecretPassageGame,
-    'pachinko': PachinkoGame,
-    'derby': DerbyGame,
-    'target-range': TargetRangeGame,
-    'target-range-own': TargetRangeGame,
-    'target-range-shared': TargetRangeGame,
-    'baseball': BaseballGame,
-    'pocket-slot': PocketSlotGame,
-    'racing-pigs': RacingPigsGame,
-};
+const GAME_FILES = [
+    './amazing-maze.js',
+    './secret-passage.js',
+    './pachinko.js',
+    './derby.js',
+    './target-range.js',
+    './baseball.js',
+    './pocket-slot.js',
+    './racing-pigs.js',
+];
+
+const BUILT = {};
+const entries = [];
+for (const path of GAME_FILES) {
+    const mod = await import(path);
+    for (const entry of mod.manifest) {
+        BUILT[entry.id] = mod.Game;
+        entries.push(entry);
+    }
+}
+entries.sort((a, b) => a.order - b.order);
+
+export const GAME_LIST = entries;
 
 export function createGame(id, deps) {
     const meta = GAME_LIST.find((g) => g.id === id);

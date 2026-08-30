@@ -30,6 +30,12 @@ function randRange(min, max) {
     return min + Math.random() * (max - min);
 }
 
+export const manifest = [
+    { id: 'racing-pigs', title: 'RACING PIGS', subtitle: 'PICK YOUR PIG', tilt: false, multiplayer: true, modes: ['custom'], order: 80 },
+];
+
+export { RacingPigsGame as Game };
+
 export class RacingPigsGame {
     constructor(deps) {
         this.renderer = deps.renderer;

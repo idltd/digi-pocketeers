@@ -26,6 +26,12 @@ const S_PLAYING = 'playing';
 const S_SLOTTED = 'slotted';
 const S_GAMEOVER = 'gameover';
 
+export const manifest = [
+    { id: 'pachinko', title: 'POCKET PACHINKO', subtitle: 'TILT TO DROP', tilt: true, multiplayer: false, order: 30 },
+];
+
+export { PachinkoGame as Game };
+
 export class PachinkoGame {
     constructor(deps) {
         this.renderer = deps.renderer;

@@ -19,6 +19,12 @@ const S_PITCHING = 'pitching';
 const S_RESULT = 'result';
 const S_GAMEOVER = 'gameover';
 
+export const manifest = [
+    { id: 'baseball', title: 'BASEBALL', subtitle: 'SWIPE TO SWING', tilt: false, multiplayer: false, order: 60 },
+];
+
+export { BaseballGame as Game };
+
 export class BaseballGame {
     constructor(deps) {
         this.renderer = deps.renderer;

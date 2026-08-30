@@ -20,6 +20,14 @@ const S_GAMEOVER = 'gameover';
 const MARKER_TTL = 15;
 const MARKER_SIZE = 8;
 
+export const manifest = [
+    { id: 'target-range', title: 'TARGET RANGE', subtitle: 'TAP TO SHOOT', tilt: false, multiplayer: false, order: 50 },
+    { id: 'target-range-own', title: 'TARGETS (OWN)', subtitle: 'YOUR OWN RANGE', tilt: false, multiplayer: true, modes: ['race'], mpMode: 'own', order: 51 },
+    { id: 'target-range-shared', title: 'TARGETS (SHARED)', subtitle: 'FIRST TO HIT', tilt: false, multiplayer: true, modes: ['custom'], mpMode: 'shared', order: 52 },
+];
+
+export { TargetRangeGame as Game };
+
 export class TargetRangeGame {
     constructor(deps, meta) {
         this.renderer = deps.renderer;

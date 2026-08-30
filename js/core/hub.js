@@ -1,7 +1,8 @@
 import {
     CANVAS_WIDTH, CANVAS_HEIGHT, HUD_HEIGHT, BACK_BUTTON_W,
-    FRAME_TIME, COLORS, GAME_LIST, STATE_HUB, STATE_GAME, STATE_TILT_PROMPT,
+    FRAME_TIME, COLORS, STATE_HUB, STATE_GAME, STATE_TILT_PROMPT,
 } from './constants.js';
+import { GAME_LIST } from '../games/index.js';
 import { Renderer } from './renderer.js';
 import { input } from './input.js';
 import { audio } from './audio.js';

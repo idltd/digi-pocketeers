@@ -36,6 +36,12 @@ function shuffle(arr) {
     return arr;
 }
 
+export const manifest = [
+    { id: 'secret-passage', title: 'SECRET PASSAGE', subtitle: 'TILT TO ROLL', tilt: true, multiplayer: false, order: 20 },
+];
+
+export { SecretPassageGame as Game };
+
 export class SecretPassageGame {
     constructor(deps) {
         this.renderer = deps.renderer;

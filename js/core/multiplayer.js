@@ -7,7 +7,8 @@
 // - so all game code must arrive over the wire from the host, which is exactly
 // what keeps new games from requiring an APK rebuild.
 
-import { GAME_LIST, CANVAS_HEIGHT } from './constants.js';
+import { CANVAS_HEIGHT } from './constants.js';
+import { GAME_LIST } from '../games/index.js';
 import { net } from './net.js';
 import { hostPhone } from './hostphone.js';
 

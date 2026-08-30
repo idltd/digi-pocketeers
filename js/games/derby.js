@@ -23,6 +23,12 @@ const S_PLAYING = 'playing';
 const S_HIT = 'hit';
 const S_GAMEOVER = 'gameover';
 
+export const manifest = [
+    { id: 'derby', title: 'DERBY', subtitle: 'TILT TO STEER', tilt: true, multiplayer: false, order: 40 },
+];
+
+export { DerbyGame as Game };
+
 export class DerbyGame {
     constructor(deps) {
         this.renderer = deps.renderer;

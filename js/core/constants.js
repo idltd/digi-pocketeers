@@ -49,18 +49,3 @@ export const COLORS = {
 export const STATE_HUB = 'hub';
 export const STATE_GAME = 'game';
 export const STATE_TILT_PROMPT = 'tilt_prompt';
-
-// Registered in build order. Each entry: id, title, subtitle, uses tilt?
-export const GAME_LIST = [
-    { id: 'amazing-maze', title: 'AMAZING MAZE', subtitle: 'TILT TO ROLL', tilt: true, multiplayer: false },
-    { id: 'amazing-maze-race', title: 'MAZE RACE', subtitle: 'RACE THE MAZE', tilt: true, multiplayer: true, modes: ['race'] },
-    { id: 'secret-passage', title: 'SECRET PASSAGE', subtitle: 'TILT TO ROLL', tilt: true, multiplayer: false },
-    { id: 'pachinko', title: 'POCKET PACHINKO', subtitle: 'TILT TO DROP', tilt: true, multiplayer: false },
-    { id: 'derby', title: 'DERBY', subtitle: 'TILT TO STEER', tilt: true, multiplayer: false },
-    { id: 'target-range', title: 'TARGET RANGE', subtitle: 'TAP TO SHOOT', tilt: false, multiplayer: false },
-    { id: 'target-range-own', title: 'TARGETS (OWN)', subtitle: 'YOUR OWN RANGE', tilt: false, multiplayer: true, modes: ['race'], mpMode: 'own' },
-    { id: 'target-range-shared', title: 'TARGETS (SHARED)', subtitle: 'FIRST TO HIT', tilt: false, multiplayer: true, modes: ['custom'], mpMode: 'shared' },
-    { id: 'baseball', title: 'BASEBALL', subtitle: 'SWIPE TO SWING', tilt: false, multiplayer: false },
-    { id: 'pocket-slot', title: 'POCKET SLOT', subtitle: 'TAP TO SPIN', tilt: false, multiplayer: false },
-    { id: 'racing-pigs', title: 'RACING PIGS', subtitle: 'PICK YOUR PIG', tilt: false, multiplayer: true, modes: ['custom'] },
-];
