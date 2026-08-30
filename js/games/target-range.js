@@ -17,6 +17,9 @@ const S_READY = 'ready';
 const S_PLAYING = 'playing';
 const S_GAMEOVER = 'gameover';
 
+const MARKER_TTL = 15;
+const MARKER_SIZE = 8;
+
 export class TargetRangeGame {
     constructor(deps, meta) {
         this.renderer = deps.renderer;
@@ -37,6 +40,7 @@ export class TargetRangeGame {
         this.state = S_READY;
         this._stateTimer = 40;
         this._nextTargetId = 0;
+        this._tapMarkers = [];
 
         this.mp = !!(this.session && this.session.connected && this.session.gameId);
 
@@ -119,6 +123,9 @@ export class TargetRangeGame {
     _onNetShared(from, msg) {
         if (this.isHost) {
             if (msg.k === 'tap') {
+                if (!this.session.isMine(from)) {
+                    this._addMarker(msg.x, msg.y, COLORS.accent2Dim);
+                }
                 const hitIdx = this.targets.findIndex(
                     (t) => Math.hypot(msg.x - t.x, msg.y - t.y) < t.r
                 );
@@ -153,6 +160,8 @@ export class TargetRangeGame {
                 if (this.session.isMine(msg.by)) {
                     this.audio.hit();
                     this.input.vibrate(msg.bonus ? [20, 20, 20] : 25);
+                } else {
+                    this._addMarker(msg.x, msg.y, COLORS.accent2Dim);
                 }
                 particles.burst(msg.x, msg.y, msg.bonus ? [COLORS.warn, COLORS.accent2] : COLORS.accent, msg.bonus ? 18 : 10, 2.2);
                 break;
@@ -200,6 +209,9 @@ export class TargetRangeGame {
             }
             return;
         }
+
+        for (const m of this._tapMarkers) m.ttl--;
+        this._tapMarkers = this._tapMarkers.filter(m => m.ttl > 0);
 
         if (this.mp) {
             if (this.mpMode === 'shared') this._updateShared();
@@ -267,6 +279,7 @@ export class TargetRangeGame {
         if (!this.isHost) {
             const tap = this.input.consumeTap();
             if (tap && tap.y >= RANGE_Y && tap.y <= RANGE_Y + this.rangeH) {
+                this._addMarker(tap.x, tap.y, COLORS.white);
                 this.session.send({ k: 'tap', x: tap.x, y: tap.y });
             }
             return;
@@ -292,6 +305,7 @@ export class TargetRangeGame {
 
         const tap = this.input.consumeTap();
         if (tap && tap.y >= RANGE_Y && tap.y <= RANGE_Y + this.rangeH) {
+            this._addMarker(tap.x, tap.y, COLORS.white);
             this._onNetShared(this.session.me.id, { k: 'tap', x: tap.x, y: tap.y });
         }
 
@@ -304,7 +318,12 @@ export class TargetRangeGame {
         }
     }
 
+    _addMarker(x, y, color) {
+        this._tapMarkers.push({ x, y, ttl: MARKER_TTL, color });
+    }
+
     _handleTap(tap) {
+        this._addMarker(tap.x, tap.y, COLORS.white);
         let hitIndex = -1;
         for (let i = 0; i < this.targets.length; i++) {
             const t = this.targets[i];
@@ -350,6 +369,7 @@ export class TargetRangeGame {
             r.circle(t.x, t.y, t.r * 0.2, flashing ? COLORS.danger : color);
         }
 
+        this._renderMarkers();
         this._renderHud();
 
         if (this.state === S_READY) this._panel('TARGET RANGE', this.mp ? (this.mpMode === 'shared' ? 'SHARED TARGETS' : 'OWN TARGETS') : 'TAP TARGETS TO SCORE');
@@ -373,6 +393,25 @@ export class TargetRangeGame {
             if (s > bestScore) { bestScore = s; best = p; }
         }
         return best;
+    }
+
+    _renderMarkers() {
+        const r = this.renderer;
+        const ctx = r.ctx;
+        for (const m of this._tapMarkers) {
+            const alpha = m.ttl / MARKER_TTL;
+            const prevAlpha = ctx.globalAlpha;
+            ctx.globalAlpha = alpha;
+            ctx.strokeStyle = m.color;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(m.x - MARKER_SIZE, m.y);
+            ctx.lineTo(m.x + MARKER_SIZE, m.y);
+            ctx.moveTo(m.x, m.y - MARKER_SIZE);
+            ctx.lineTo(m.x, m.y + MARKER_SIZE);
+            ctx.stroke();
+            ctx.globalAlpha = prevAlpha;
+        }
     }
 
     _renderHud() {

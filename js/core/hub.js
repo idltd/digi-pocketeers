@@ -27,6 +27,8 @@ const MASTER = 'master';
 // Not on the front page - only ever reached by scanning the master's code.
 const JOIN = 'join';
 
+const SOLO_GAMES = GAME_LIST.filter(g => !g.multiplayer);
+
 const BACK_Y = 18;
 const BACK_H = 20;
 const LIST_TOP = 46;
@@ -242,7 +244,7 @@ class Hub {
     // --- Solo -------------------------------------------------------------
 
     _listMaxScroll() {
-        const contentH = GAME_LIST.length * ROW_H;
+        const contentH = SOLO_GAMES.length * ROW_H;
         const viewportH = CANVAS_HEIGHT - LIST_TOP;
         return Math.max(0, contentH - viewportH);
     }
@@ -272,11 +274,11 @@ class Hub {
         }
 
         const index = Math.floor((tap.y - LIST_TOP + this.listScroll) / ROW_H);
-        if (index < 0 || index >= GAME_LIST.length) return;
+        if (index < 0 || index >= SOLO_GAMES.length) return;
         if (tap.x < 4 || tap.x > CANVAS_WIDTH - 4) return;
         input.consumeTap();
         audio.select();
-        const meta = GAME_LIST[index];
+        const meta = SOLO_GAMES[index];
         this.pendingMeta = meta;
         if (meta.tilt && input.tiltPermission !== 'granted' && input.tiltSupported) {
             this.state = STATE_TILT_PROMPT;
@@ -457,7 +459,7 @@ class Hub {
         const r = this.renderer;
         const canHost = relayAvailable() && hostPhone.present !== false;
 
-        this._panel(0, 'PLAY SOLO', GAME_LIST.length + ' GAMES ON THIS PHONE', COLORS.accent);
+        this._panel(0, 'PLAY SOLO', SOLO_GAMES.length + ' GAMES ON THIS PHONE', COLORS.accent);
         this._panel(1, 'BE MASTER', canHost ? 'RUN THE TABLE' : 'NEEDS THE HOST APP', COLORS.accent2, canHost);
 
         // Joining is not a button, so say where it does happen. Somebody
@@ -496,7 +498,7 @@ class Hub {
         ctx.rect(0, LIST_TOP, CANVAS_WIDTH, CANVAS_HEIGHT - LIST_TOP);
         ctx.clip();
 
-        GAME_LIST.forEach((meta, i) => {
+        SOLO_GAMES.forEach((meta, i) => {
             const y = LIST_TOP + i * ROW_H - this.listScroll;
             if (y + ROW_H < LIST_TOP || y > CANVAS_HEIGHT) return;
             const glow = Math.sin(performance.now() / 500 + i) * 0.5 + 0.5;
