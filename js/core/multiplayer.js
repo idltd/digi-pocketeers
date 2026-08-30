@@ -264,7 +264,9 @@ export class Session {
     // render as "yours" and - the reason it exists - which sounds to play, so
     // each phone only ever honks for its own pig.
     isMine(playerId) {
-        return this.me !== null && playerId === this.me.id;
+        // Player IDs are numbers on the wire, but become strings when used as
+        // keys in game-state objects (for example the maze ghost map).
+        return this.me !== null && Number(playerId) === this.me.id;
     }
 }
 
