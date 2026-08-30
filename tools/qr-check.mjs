@@ -22,8 +22,8 @@ import { qrMatrix } from '../js/core/qr.js';
 
 const CASES = [
     { text: 'HELLO WORLD', modules: 21, sha: '1e387bd8b7a170bfa73b461bab560d96940b4421c42ed9c4d787a62c0a0166fa' },
-    { text: 'http://10.251.165.111:8090/?room=HGNH', modules: 29, sha: '58db156e1853d180bf501212c72e915f6f27760ba0b799283c044a6b9262bde5' },
-    { text: 'WIFI:T:WPA;S:AndroidShare_7187;P:qphgj2wyai6ybgb;H:false;;', modules: 33, sha: 'd4eb20d32e3cf4a2e2b3889540900b9580b4e401d60c8121eed28fd86a9b085d' },
+    { text: 'http://192.0.2.1:8090/?room=ABCD', modules: 29, sha: '6a2573bbb00b14fc638ab99500cca521606aa8288d98b592d830b1e1689a9589' },
+    { text: 'WIFI:T:WPA;S:ExampleNetwork;P:example-password;H:false;;', modules: 33, sha: 'af8b4234929c7b9c96e7e738c15d3e83fb973b559fd186e3e96c15c42f9d7ecd' },
 ];
 
 function fingerprint(matrix) {
