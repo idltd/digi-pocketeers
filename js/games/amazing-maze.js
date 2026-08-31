@@ -7,7 +7,7 @@ const GAME_ID = 'amazing-maze';
 const WALL_T = 4;
 const BALL_R = 5;
 const GOAL_R = 9;
-const HOLE_R = 7;
+const HOLE_R = 5;
 
 const ACCEL = 0.09;
 const FRICTION = 0.992;
